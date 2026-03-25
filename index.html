@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delta Prime | Professional Terminal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    :root { --bg: #05080a; --nav: #0d121f; --gold: #ffc107; }
+    body, html { margin: 0; padding: 0; height: 100%; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+    
+    /* Navigation Bar */
+    .nav { background: var(--nav); height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 1000; position: relative; }
+    .nav-links { display: flex; gap: 20px; }
+    .nav-item { cursor: pointer; text-align: center; color: #777; transition: 0.3s; font-size: 0.65rem; text-transform: uppercase; }
+    .nav-item.active { color: var(--gold); }
+    .nav-item i { display: block; font-size: 1.4rem; margin-bottom: 4px; }
+
+    .balance-pill { background: #1a2235; padding: 6px 14px; border-radius: 25px; border: 1px solid var(--gold); color: var(--gold); font-weight: bold; font-family: monospace; }
+
+    /* Viewports */
+    #content { height: calc(100vh - 70px); width: 100%; position: relative; }
+    #ai-view { display: flex; flex-direction: column; height: 100%; padding: 15px; box-sizing: border-box; }
+    #bot-view { width: 100%; height: 100%; border: none; display: none; background: #f3f3f3; }
+
+    /* AI Chat UI */
+    .chat-card { flex: 1; background: #0d121f; border: 1px solid var(--gold); border-radius: 12px; display: none; flex-direction: column; overflow: hidden; }
+    .msg-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .msg { padding: 10px; border-radius: 8px; font-size: 0.9rem; max-width: 85%; }
+    .bot-msg { background: rgba(255,255,255,0.05); align-self: flex-start; }
+    .user-msg { background: var(--gold); color: black; align-self: flex-end; }
+    
+    .input-row { padding: 12px; background: #05080a; display: flex; gap: 8px; border-top: 1px solid #222; }
+    input { flex: 1; background: #1a2235; border: 1px solid #333; color: white; padding: 10px; border-radius: 6px; outline: none; }
+    
+    .login-box { background: rgba(255,255,255,0.03); padding: 40px 20px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+    .btn-main { background: var(--gold); color: black; border: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div style="font-weight:bold; font-size:1.1rem;">DELTA<span style="color:var(--gold)">PRIME</span></div>
+    
+    <div class="nav-links">
+      <div class="nav-item active" id="ai-btn" onclick="show('ai')">
+        <i class="fas fa-brain"></i><span>AI Chat</span>
+      </div>
+      <div class="nav-item" id="bot-btn" onclick="show('bot')">
+        <i class="fas fa-robot"></i><span>Bot Builder</span>
+      </div>
+    </div>
+
+    <div class="balance-pill" id="wallet-val">0.00 USD</div>
+  </nav>
+
+  <div id="content">
+    <div id="ai-view">
+      <div class="login-box" id="login-ui">
+        <h3>System Offline</h3>
+        <p style="color:#777; margin-bottom:20px;">Please authenticate to sync your balance and bots.</p>
+        <button class="btn-main" onclick="startAuth()">Login with Deriv API</button>
+      </div>
+
+      <div class="chat-card" id="chat-ui">
+        <div class="msg-area" id="msgs"></div>
+        <div class="input-row">
+          <input type="text" id="user-in" placeholder="Enter logic (e.g. 5 evens)...">
+          <button onclick="sendChat()" style="background:var(--gold); border:none; padding:10px 15px; border-radius:5px; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <iframe id="bot-view" src="about:blank"></iframe>
+  </div>
+
+  <script>
+    const APP_ID = '129987';
+    let currentToken = '';
+
+    function startAuth() {
+      window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=EN`;
+    }
+
+    // THIS IS THE KEY: It forces the frame to log in using your token
+    function show(tab) {
+      const ai = document.getElementById('ai-view');
+      const bot = document.getElementById('bot-view');
+      
+      document.getElementById('ai-btn').classList.toggle('active', tab === 'ai');
+      document.getElementById('bot-btn').classList.toggle('active', tab === 'bot');
+
+      if (tab === 'bot') {
+        ai.style.display = 'none';
+        bot.style.display = 'block';
+        
+        // Use the token to auto-login the builder
+        if (currentToken) {
+          bot.src = `https://dbot.deriv.com/?token1=${currentToken}`;
+        } else {
+          bot.src = "https://dbot.deriv.com";
+        }
+      } else {
+        ai.style.display = 'flex';
+        bot.style.display = 'none';
+      }
+    }
+
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token1');
+      if (token) {
+        currentToken = token;
+        connectAPI(token);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    function connectAPI(token) {
+      const ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`);
+      ws.onopen = () => ws.send(JSON.stringify({ authorize: token }));
+      ws.onmessage = (msg) => {
+        const res = JSON.parse(msg.data);
+        if (res.msg_type === 'authorize' && !res.error) {
+          document.getElementById('login-ui').style.display = 'none';
+          document.getElementById('chat-ui').style.display = 'flex';
+          document.getElementById('wallet-val').innerText = "Syncing...";
+          ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+          addMessage("<b>Terminal Sync Complete.</b> Your session is now shared with the Bot Builder tab.", "bot-msg");
+        }
+        if (res.balance) {
+          document.getElementById('wallet-val').innerText = res.balance.balance + " " + res.balance.currency;
+        }
+      };
+    }
+
+    function addMessage(t, c) {
+      const m = document.getElementById('msgs');
+      m.innerHTML += `<div class="msg ${c}">${t}</div>`;
+      m.scrollTop = m.scrollHeight;
+    }
+
+    function sendChat() {
+      const i = document.getElementById('user-in');
+      if(i.value) { addMessage(i.value, "user-msg"); i.value = ""; }
+    }
+  </script>
+</body>
+</html>
