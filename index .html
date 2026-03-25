@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Delta Prime | Unified Terminal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    :root { --bg: #05080a; --nav: #0d121f; --gold: #ffc107; --red: #ff4444; }
+    body, html { margin: 0; padding: 0; height: 100%; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+    
+    /* Top Navigation */
+    .nav { background: var(--nav); height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 1000; position: relative; }
+    .nav-brand { font-weight: bold; font-size: 1.1rem; letter-spacing: 1px; }
+    .nav-tabs { display: flex; gap: 20px; }
+    .tab { cursor: pointer; text-align: center; color: #555; transition: 0.3s; font-size: 0.65rem; text-transform: uppercase; font-weight: bold; }
+    .tab.active { color: var(--gold); }
+    .tab i { display: block; font-size: 1.5rem; margin-bottom: 3px; }
+
+    .wallet { background: #1a2235; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--gold); color: var(--gold); font-weight: bold; font-family: monospace; font-size: 0.9rem; }
+
+    /* Main View Container */
+    #viewport { height: calc(100vh - 70px); width: 100%; position: relative; background: var(--bg); }
+    
+    /* AI View */
+    #ai-view { display: flex; flex-direction: column; height: 100%; padding: 15px; box-sizing: border-box; }
+    .gate-card { background: rgba(255,255,255,0.03); padding: 40px 20px; border-radius: 15px; border: 1px solid #222; text-align: center; margin: auto; max-width: 400px; }
+    
+    .chat-container { flex: 1; background: #0d121f; border: 1px solid var(--gold); border-radius: 12px; display: none; flex-direction: column; overflow: hidden; }
+    #chat-msgs { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .msg { padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; max-width: 85%; line-height: 1.4; }
+    .bot { background: rgba(255,255,255,0.07); align-self: flex-start; border-left: 3px solid var(--gold); }
+    .user { background: var(--gold); color: black; align-self: flex-end; font-weight: 600; }
+
+    .chat-input { padding: 12px; background: #05080a; display: flex; gap: 8px; border-top: 1px solid #222; }
+    input { flex: 1; background: #1a2235; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; outline: none; }
+    
+    /* Bot Frame */
+    #bot-frame { width: 100%; height: 100%; border: none; display: none; background: #f3f3f3; }
+
+    .btn-gold { background: var(--gold); color: black; border: none; padding: 14px 30px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-brand">DELTA<span style="color:var(--gold)">PRIME</span></div>
+    
+    <div class="nav-tabs">
+      <div class="tab active" id="tab-ai" onclick="switchView('ai')">
+        <i class="fas fa-brain"></i><span>AI Chat</span>
+      </div>
+      <div class="tab" id="tab-bot" onclick="switchView('bot')">
+        <i class="fas fa-robot"></i><span>Bot Builder</span>
+      </div>
+    </div>
+
+    <div class="wallet" id="balance-display">0.00 USD</div>
+  </nav>
+
+  <div id="viewport">
+    <!-- AI SECTION -->
+    <div id="ai-view">
+      <div class="gate-card" id="login-gate">
+        <h2 style="margin-top:0;">Terminal Offline</h2>
+        <p style="color:#888; margin-bottom:25px;">Connect your account to synchronize your AI strategies and Bot Builder.</p>
+        <button class="btn-gold" onclick="triggerLogin()">LOGIN WITH DERIV</button>
+      </div>
+
+      <div class="chat-container" id="chat-ui">
+        <div id="chat-msgs"></div>
+        <div class="chat-input">
+          <input type="text" id="user-text" placeholder="Describe your strategy...">
+          <button onclick="handleChat()" style="background:var(--gold); border:none; padding:10px 15px; border-radius:8px; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOT BUILDER IFRAME -->
+    <iframe id="bot-frame" src="about:blank" allow="clipboard-read; clipboard-write"></iframe>
+  </div>
+
+  <script>
+    const APP_ID = '129987';
+    let globalToken = localStorage.getItem('dp_session_token') || '';
+
+    function triggerLogin() {
+      // Redirect to Deriv OAuth
+      window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=EN`;
+    }
+
+    function switchView(view) {
+      const ai = document.getElementById('ai-view');
+      const bot = document.getElementById('bot-frame');
+      const tAi = document.getElementById('tab-ai');
+      const tBot = document.getElementById('tab-bot');
+
+      if (view === 'bot') {
+        ai.style.display = 'none';
+        bot.style.display = 'block';
+        tAi.classList.remove('active');
+        tBot.classList.add('active');
+
+        // DEEP LINKING LOGIC
+        // If we have a token, we force the frame to load WITH that token to skip the login screen
+        if (globalToken) {
+          const syncUrl = `https://dbot.deriv.com?token1=${globalToken}&app_id=${APP_ID}`;
+          if (bot.src !== syncUrl) {
+            bot.src = syncUrl;
+          }
+        } else {
+          bot.src = `https://dbot.deriv.com?app_id=${APP_ID}`;
+        }
+      } else {
+        ai.style.display = 'flex';
+        bot.style.display = 'none';
+        tAi.classList.add('active');
+        tBot.classList.remove('active');
+      }
+    }
+
+    window.onload = function() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token1');
+
+      if (token) {
+        globalToken = token;
+        localStorage.setItem('dp_session_token', token);
+        // Clean the URL so the token is hidden
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      if (globalToken) {
+        initConnection(globalToken);
+      }
+    };
+
+    function initConnection(token) {
+      const ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`);
+      
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ authorize: token }));
+      };
+
+      ws.onmessage = (msg) => {
+        const data = JSON.parse(msg.data);
+        
+        if (data.msg_type === 'authorize' && !data.error) {
+          document.getElementById('login-gate').style.display = 'none';
+          document.getElementById('chat-ui').style.display = 'flex';
+          addMessage("<b>Sync Successful.</b> Your session is active. You can switch to the 'Bot Builder' tab without logging in again.", "bot");
+          ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+        }
+
+        if (data.error) {
+          localStorage.removeItem('dp_session_token');
+          document.getElementById('login-gate').style.display = 'block';
+          document.getElementById('chat-ui').style.display = 'none';
+        }
+
+        if (data.balance) {
+          document.getElementById('balance-display').innerText = data.balance.balance + " " + data.balance.currency;
+        }
+      };
+    }
+
+    function addMessage(txt, type) {
+      const box = document.getElementById('chat-msgs');
+      box.innerHTML += `<div class="msg ${type}">${txt}</div>`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function handleChat() {
+      const input = document.getElementById('user-text');
+      if (input.value) {
+        addMessage(input.value, "user");
+        input.value = "";
+        setTimeout(() => {
+          addMessage("Analyzing tick flow for your strategy... Signal will appear here.", "bot");
+        }, 800);
+      }
+    }
+  </script>
+</body>
+</html>
