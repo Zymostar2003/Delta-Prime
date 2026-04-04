@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CEOSkitTheTrader | Delta Prime</title>
+    <style>
+        :root {
+            --bg: #ffffff; --surface: #f2f2f7; --panel: #ffffff;
+            --text-main: #000000; --text-sub: #666666; --border: #e5e5ea;
+            --accent: #007aff; --up: #00b067; --down: #ff3b30; --warn: #ff9500;
+            --ceo-red: #ff3b30;
+            --whatsapp: #25D366; --gmail: #EA4335; --tiktok: #000000;
+            --circle-border: #d1d1d6; 
+            --digit-box-bg: #f8f8fa; 
+        }
+        [data-theme="dark"] {
+            --bg: #000000; --surface: #1c1c1e; --panel: #121212;
+            --text-main: #ffffff; --text-sub: #aaaaaa; --border: #38383a;
+            --tiktok: #ffffff; 
+            --circle-border: #48484a;
+            --digit-box-bg: #151517;
+        }
+
+        body, html { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: var(--surface); color: var(--text-main); height: 100%; overflow: hidden; }
+
+        /* --- SPLASH SCREEN --- */
+        #splash-screen { position: fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:5000; display:flex; flex-direction: column; justify-content:center; align-items:center; transition: opacity 1s ease-in-out; }
+        #money-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #decrypt-container { font-family: monospace; font-size: 2.2rem; font-weight: 900; color: #00ff41; z-index: 5001; text-shadow: 0 0 10px rgba(0,255,65,0.5); }
+        .splash-red { color: var(--ceo-red); text-shadow: 0 0 10px rgba(255,59,48,0.5); }
+
+        /* --- SIDE MENU & SOCIALS --- */
+        #side-menu { position: fixed; top: 0; left: -100%; width: 75%; max-width: 300px; height: 100%; background: var(--panel); z-index: 3000; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); padding: 40px 25px; display: flex; flex-direction: column; box-sizing: border-box; }
+        #side-menu.open { left: 0; border-right: 1px solid var(--border); box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
+        .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2900; display: none; backdrop-filter: blur(2px); }
+        .menu-item { padding: 15px 0; font-weight: 700; border-bottom: 1px solid var(--border); cursor: pointer; }
+        .social-footer { margin-top: auto; display: flex; justify-content: space-around; padding-top: 20px; border-top: 1px solid var(--border); }
+        .social-icon { width: 28px; height: 28px; cursor: pointer; }
+        .ico-wa { fill: var(--whatsapp); } .ico-gm { fill: var(--gmail); } .ico-tk { fill: var(--tiktok); }
+
+        /* --- HEADER & NAVIGATION --- */
+        .fixed-header { display: flex; align-items: center; height: 60px; padding: 0 5px; background: var(--bg); border-bottom: 1px solid var(--border); }
+        .menu-trigger { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; }
+        .feature-row { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; background: var(--bg); padding: 10px 20px; border-bottom: 1px solid var(--border); }
+        .feature-btn { white-space: nowrap; padding: 6px 16px; background: var(--accent); color: white; border-radius: 8px; font-size: 11px; font-weight: 900; cursor: pointer; text-transform: uppercase; }
+
+        /* --- TRADINGVIEW MODAL --- */
+        #tv-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 95%; height: 600px; background: var(--panel); border-radius: 12px; z-index: 4000; display: none; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
+        .tv-close-small { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; background: rgba(0,0,0,0.2); color: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; cursor: pointer; z-index: 4005; border: none; }
+
+        /* --- MARKET NAV --- */
+        .h-scroll { display: flex; overflow-x: auto; scrollbar-width: none; padding: 12px 20px; background: var(--surface); gap: 8px; }
+        .pill-btn { white-space: nowrap; padding: 8px 20px; background: var(--panel); border-radius: 20px; font-size: 13px; font-weight: 900; cursor: pointer; border: 1px solid var(--border); color: var(--text-main); transition: all 0.2s ease; }
+        .pill-btn.active { background: var(--text-main); color: var(--bg); }
+        
+        .pill-btn.selected-highlight { 
+            background: var(--accent) !important; 
+            color: white !important; 
+            border-color: var(--accent) !important;
+            font-weight: 900;
+        }
+
+        /* --- DASHBOARD UI --- */
+        #expansion-panel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 500; display: none; flex-direction: column; }
+        .scroll-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 100px; }
+        .close-btn { position: absolute; top: 8px; right: 12px; font-size: 14px; font-weight: 900; color: var(--text-sub); padding: 4px; z-index: 1000; cursor: pointer; opacity: 0.7; }
+        .price-hero { text-align: center; padding: 25px; background: var(--panel); border-radius: 20px; margin-bottom: 15px; font-family: monospace; font-size: 2.2rem; font-weight: 900; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+        
+        /* --- DIGIT ANALYSIS --- */
+        .digit-master-box { background: var(--digit-box-bg); padding: 25px 15px; border-radius: 24px; margin-bottom: 25px; border: 1px solid var(--border); position: relative; }
+        .digit-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 25px 10px; position: relative; }
+        .digit-item { display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; }
+        .digit-circle { width: 48px; height: 48px; line-height: 48px; background: var(--bg); border-radius: 50%; font-weight: 900; font-size: 20px; text-align: center; border: 2px solid var(--circle-border); position: relative; transition: all 0.2s ease; }
+        .digit-item.hot .digit-circle { background: var(--up) !important; color: white !important; border-color: var(--up) !important; }
+        .digit-item.warm .digit-circle { background: var(--warn) !important; color: white !important; border-color: var(--warn) !important; }
+        .digit-item.cold .digit-circle { background: var(--down) !important; color: white !important; border-color: var(--down) !important; }
+        .digit-item.active .digit-circle { border-color: var(--accent) !important; box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2); }
+        .digit-percent { font-size: 14px; color: var(--text-main); font-weight: 900; font-family: 'Arial Black', sans-serif; }
+
+        /* --- INVERTED BLUE ARROW CURSOR (sharp point touches the ring from above) --- */
+        .blue-arrow-cursor {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 18px solid var(--accent);
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));
+            transform: translateX(-50%) translateY(0%);
+            pointer-events: none;
+            z-index: 100;
+            transition: left 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1), top 0.2s ease-out;
+        }
+        .blue-arrow-cursor::after {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: -2px;
+            width: 4px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        /* --- ROLLING WINDOWS & NAV --- */
+        .trade-nav-scroll { display: flex; position: relative; gap: 8px; overflow-x: auto; scrollbar-width: none; background: var(--bg); padding: 5px 20px; border-bottom: 1px solid var(--border); }
+        .nav-tab { white-space: nowrap; padding: 12px 16px; font-size: 11px; font-weight: 900; color: var(--text-sub); text-transform: uppercase; cursor: pointer; transition: color 0.3s ease; }
+        .nav-tab.active { color: var(--text-main); }
+        
+        #nav-indicator { position: absolute; bottom: 0; height: 3px; background: var(--accent); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 2px; pointer-events: none; }
+
+        .swipe-container { display: flex; overflow-x: auto; snap-type: x mandatory; scrollbar-width: none; gap: 20px; margin-top: 10px; scroll-behavior: smooth; }
+        .rolling-panel { min-width: 100%; snap-align: start; background: var(--bg); border-radius: 25px; padding: 18px; box-sizing: border-box; border: 1px solid var(--border); }
+        .letter-grid { display: flex; flex-wrap: wrap; gap: 6px; background: var(--surface); padding: 12px; border-radius: 15px; min-height: 100px; }
+        .letter-tile { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; border-radius: 6px; color: white; }
+        .stat-container { display: flex; gap: 8px; margin-bottom: 12px; }
+        .stat-pill-box { flex: 1; padding: 10px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; background: var(--surface); border: 1px solid var(--border); }
+        .stat-pill-label { font-size: 10px; font-weight: 900; color: var(--text-sub); text-transform: uppercase; }
+        .stat-pill-val { font-size: 16px; font-weight: 900; font-family: monospace; }
+
+        #asset-selector { width: 100%; padding: 15px; border-radius: 15px; border: 2px solid var(--border); font-weight: 900; margin-bottom: 15px; background: var(--bg); color: var(--text-main); transition: border-color 0.4s ease; outline: none; }
+        
+        #asset-selector.next-step { border-color: var(--accent); border-width: 2px; box-shadow: 0 0 8px rgba(0, 122, 255, 0.2); }
+        
+        .status-badge { position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #0f0; font-size: 10px; padding: 4px 8px; border-radius: 8px; font-family: monospace; z-index: 200; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div id="splash-screen">
+    <canvas id="money-canvas"></canvas>
+    <div id="decrypt-container"></div>
+</div>
+
+<div class="menu-overlay" id="overlay" onclick="toggleMenu()"></div>
+<div class="menu-overlay" id="modal-overlay" style="z-index: 3900;" onclick="toggleTV()"></div>
+
+<div id="tv-modal">
+    <button class="tv-close-small" onclick="toggleTV()">✕</button>
+    <iframe src="https://tradingview.deriv.com/" style="width:100%; height:100%; border:none;"></iframe>
+</div>
+
+<div id="side-menu">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+        <div style="font-weight:900;"><span style="color:red">CEO</span>Skit</div>
+        <button onclick="toggleTheme()" style="padding:5px 10px; font-weight:900; border:1px solid var(--border); background:none; color:var(--text-main); border-radius:5px;">THEME</button>
+    </div>
+    <div class="menu-item" onclick="toggleMenu()">Dashboard</div>
+    <div class="social-footer">
+        <svg class="social-icon ico-wa" viewBox="0 0 24 24" onclick="window.open('https://wa.me/ceoskit')"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.628 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        <svg class="social-icon ico-gm" viewBox="0 0 24 24" onclick="window.open('mailto:ceoskit@gmail.com')"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        <svg class="social-icon ico-tk" viewBox="0 0 24 24" onclick="window.open('https://tiktok.com/@ceoskit')"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.13-1.47-.13 1.95-.12 3.91-.12 5.86 0 2.44-.8 4.97-2.61 6.64-1.81 1.67-4.44 2.27-6.81 1.83-2.37-.44-4.52-2.14-5.37-4.38-.85-2.24-.55-4.93.89-6.81 1.44-1.88 3.86-2.91 6.22-2.58v4.02c-1.31-.22-2.75.14-3.64 1.13-.89.99-1.07 2.49-.46 3.65.61 1.16 2.01 1.95 3.31 1.74 1.3-.21 2.29-1.4 2.29-2.72.01-2.91.01-5.83.01-8.74-.01-2.74-.01-5.49-.01-8.23z"/></svg>
+    </div>
+</div>
+
+<div class="fixed-header">
+    <div class="menu-trigger" onclick="toggleMenu()">☰</div>
+    <div style="font-weight:900; margin-left: 5px;">CEOSkitTheTrader</div>
+</div>
+
+<div class="feature-row">
+    <div class="feature-btn" onclick="toggleTV()">TradingView</div>
+    <div class="feature-btn" style="background:var(--text-sub); opacity:0.5;">Signals</div>
+</div>
+
+<div class="h-scroll" id="market-nav"></div>
+
+<div id="expansion-panel">
+    <div class="close-btn" onclick="closePanel()">✕</div>
+    <div class="scroll-content">
+        <div class="h-scroll" id="sub-nav"></div>
+        <div class="trade-nav-scroll" id="trade-nav">
+            <div id="nav-indicator"></div>
+            <div class="nav-tab active" onclick="scrollToPanel(0)">Matches / Differs</div>
+            <div class="nav-tab" onclick="scrollToPanel(1)">Over / Under</div>
+            <div class="nav-tab" onclick="scrollToPanel(2)">Even / Odd</div>
+            <div class="nav-tab" onclick="scrollToPanel(3)">Rise / Fall</div>
+        </div>
+        <select id="asset-selector"><option disabled selected>Select Asset</option></select>
+        <div id="trading-ui" style="display:none;">
+            <div class="price-hero"><span id="main-val">0.000</span><span id="last-digit" style="color:var(--accent)">0</span></div>
+            <div class="digit-master-box" id="digit-master-box">
+                <div class="digit-grid" id="digit-grid"></div>
+                <div id="blue-arrow" class="blue-arrow-cursor" style="display: none;"></div>
+            </div>
+            <div class="swipe-container" id="swipe-box">
+                <div class="rolling-panel"><div class="stat-container" id="stat-md"></div><div class="letter-grid" id="grid-matches"></div></div>
+                <div class="rolling-panel"><div class="stat-container" id="stat-ou"></div><div class="letter-grid" id="grid-ou"></div></div>
+                <div class="rolling-panel"><div class="stat-container" id="stat-eo"></div><div class="letter-grid" id="grid-eo"></div></div>
+                <div class="rolling-panel"><div class="stat-container" id="stat-rf"></div><div class="letter-grid" id="grid-rf"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="status-badge" id="status-badge">● CONNECTING...</div>
+
+<script>
+    // --- MOCK DATA FOR FALLBACK ---
+    let useMockData = false;
+    let mockInterval = null;
+    
+    function generateMockPrice() {
+        return 1.2345 + Math.random() * 0.1;
+    }
+    
+    function startMockData() {
+        if (mockInterval) clearInterval(mockInterval);
+        const mockHistory = [];
+        for (let i = 0; i < 100; i++) mockHistory.push(generateMockPrice());
+        tickHistory = mockHistory;
+        lastPrice = tickHistory[tickHistory.length - 1];
+        refreshAll();
+        mockInterval = setInterval(() => {
+            const newPrice = generateMockPrice();
+            updatePrice({ quote: newPrice });
+            tickHistory.push(newPrice);
+            if (tickHistory.length > 1000) tickHistory.shift();
+            refreshAll();
+        }, 3000);
+        document.getElementById('status-badge').innerHTML = '⚠️ MOCK MODE (Demo)';
+        document.getElementById('status-badge').style.color = '#ff9500';
+    }
+    
+    // --- FALLBACK ASSETS ---
+    const fallbackSymbols = [
+        { market_display_name: "Forex", submarket_display_name: "Major Pairs", symbol: "frxEURUSD", display_name: "EUR/USD", pip: 0.0001 },
+        { market_display_name: "Forex", submarket_display_name: "Major Pairs", symbol: "frxGBPUSD", display_name: "GBP/USD", pip: 0.0001 },
+        { market_display_name: "Forex", submarket_display_name: "Major Pairs", symbol: "frxUSDJPY", display_name: "USD/JPY", pip: 0.01 },
+        { market_display_name: "Cryptocurrency", submarket_display_name: "Major", symbol: "cryBTCUSD", display_name: "BTC/USD", pip: 1 },
+        { market_display_name: "Cryptocurrency", submarket_display_name: "Major", symbol: "cryETHUSD", display_name: "ETH/USD", pip: 0.1 },
+        { market_display_name: "Stock Indices", submarket_display_name: "US Indices", symbol: "idxSP500", display_name: "S&P 500", pip: 0.01 }
+    ];
+    
+    let allSymbols = [];
+    let tickHistory = [];
+    let lastPrice = 0;
+    let currentAsset = "";
+    let assetDecimals = 2;
+    
+    // --- WEBSOCKET WITH FALLBACK ---
+    let socket = null;
+    let wsTimeout = null;
+    
+    function initWebSocket() {
+        try {
+            socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+            socket.onopen = () => {
+                document.getElementById('status-badge').innerHTML = '● LIVE DATA';
+                document.getElementById('status-badge').style.color = '#00ff41';
+                useMockData = false;
+                if (mockInterval) clearInterval(mockInterval);
+                socket.send(JSON.stringify({ "active_symbols": "brief" }));
+                setInterval(() => { if(socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ping: 1})); }, 25000);
+            };
+            socket.onmessage = (msg) => {
+                try {
+                    const res = JSON.parse(msg.data);
+                    if (res.msg_type === "active_symbols") { 
+                        allSymbols = res.active_symbols; 
+                        initMarketMenu(); 
+                    }
+                    if (res.msg_type === "history") { 
+                        tickHistory = res.history.prices; 
+                        if(tickHistory.length) lastPrice = tickHistory[tickHistory.length-1];
+                        refreshAll(); 
+                        positionBlueArrow();
+                    }
+                    if (res.tick) { 
+                        updatePrice(res.tick); 
+                        tickHistory.push(res.tick.quote); 
+                        if (tickHistory.length > 1000) tickHistory.shift(); 
+                        refreshAll(); 
+                        positionBlueArrow();
+                    }
+                } catch(e) { console.warn(e); }
+            };
+            socket.onerror = (err) => {
+                console.warn("WebSocket error, using fallback", err);
+                if (!useMockData) startMockData();
+                document.getElementById('status-badge').innerHTML = '⚠️ MOCK MODE';
+                document.getElementById('status-badge').style.color = '#ff9500';
+            };
+            socket.onclose = () => {
+                if (!useMockData) startMockData();
+            };
+            wsTimeout = setTimeout(() => {
+                if (socket && socket.readyState !== WebSocket.OPEN) {
+                    if (!useMockData) startMockData();
+                }
+            }, 5000);
+        } catch(e) {
+            startMockData();
+        }
+    }
+    
+    // --- POSITION ARROW: INVERTED so sharp point (top) touches the ring from above ---
+    function positionBlueArrow() {
+        const arrow = document.getElementById('blue-arrow');
+        if (!arrow) return;
+        const activeDigitItem = document.querySelector('.digit-item.active');
+        if (activeDigitItem && arrow) {
+            const circle = activeDigitItem.querySelector('.digit-circle');
+            if (circle) {
+                const rect = circle.getBoundingClientRect();
+                const masterBox = document.getElementById('digit-master-box');
+                const masterRect = masterBox.getBoundingClientRect();
+                // Arrow is now pointing DOWN with tip at the top edge of the circle
+                // We position the arrow so its tip (top point of the triangle) touches the outer rim of the circle from above.
+                const relativeLeft = rect.left + rect.width/2 - masterRect.left;
+                // Tip of inverted arrow is at the top border of the arrow element.
+                // We want tip to sit exactly on top of circle border (top edge of circle rect)
+                const tipY = rect.top - masterRect.top - 2; // slight negative to touch the border
+                arrow.style.display = 'block';
+                arrow.style.left = relativeLeft + 'px';
+                arrow.style.top = tipY + 'px';
+            } else {
+                arrow.style.display = 'none';
+            }
+        } else {
+            arrow.style.display = 'none';
+        }
+    }
+
+    function updateCastle() {
+        if (!tickHistory.length) return;
+        const counts = Array(10).fill(0);
+        const sample = tickHistory.slice(-1000);
+        sample.forEach(p => { const d = parseInt(p.toFixed(assetDecimals).slice(-1)); if(!isNaN(d)) counts[d]++; });
+        const sorted = counts.map((v,i)=>({v,i})).sort((a,b)=>b.v - a.v);
+        const lastD = parseInt(tickHistory[tickHistory.length-1].toFixed(assetDecimals).slice(-1));
+        const grid = document.getElementById('digit-grid'); 
+        if(!grid) return;
+        grid.innerHTML = "";
+        counts.forEach((c, i) => {
+            let type = ''; 
+            if (i === sorted[0].i) type = 'hot'; 
+            else if (i === sorted[1].i) type = 'warm'; 
+            else if (i === sorted[9].i) type = 'cold'; 
+            const isActive = (i === lastD) ? 'active' : '';
+            grid.innerHTML += `<div class="digit-item ${isActive} ${type}" data-digit="${i}"><div class="digit-circle">${i}</div><div class="digit-percent">${(c/10).toFixed(1)}%</div></div>`;
+        });
+        positionBlueArrow();
+    }
+
+    function refreshAll() { 
+        updateCastle(); 
+        updateMatches(); 
+        updateOverUnder(); 
+        updateEvenOdd(); 
+        updateRiseFall(); 
+        positionBlueArrow(); 
+    }
+
+    function updateMatches() {
+        const grid = document.getElementById('grid-matches'); if(!grid) return; grid.innerHTML = "";
+        const sample = tickHistory.slice(-50); let matches = 0;
+        for (let i = 0; i < sample.length; i++) {
+            const d = sample[i].toFixed(assetDecimals).slice(-1);
+            const isMatch = (i > 0 && d === sample[i-1].toFixed(assetDecimals).slice(-1));
+            if (isMatch) matches++;
+            grid.innerHTML += `<div class="letter-tile" style="background:${isMatch?'var(--up)':'var(--text-sub)'}; opacity:${isMatch?1:0.4}">${d}</div>`;
+        }
+        document.getElementById('stat-md').innerHTML = `<div class="stat-pill-box"><span class="stat-pill-label">MATCHES</span><span class="stat-pill-val">${matches}</span></div><div class="stat-pill-box"><span class="stat-pill-label">DIFFERS</span><span class="stat-pill-val">${50-matches}</span></div>`;
+    }
+
+    function updateOverUnder() {
+        const grid = document.getElementById('grid-ou'); if(!grid) return; grid.innerHTML = "";
+        const sample = tickHistory.slice(-50); let over = 0;
+        sample.forEach(p => {
+            const d = parseInt(p.toFixed(assetDecimals).slice(-1));
+            const isOver = d > 4; if(isOver) over++;
+            grid.innerHTML += `<div class="letter-tile" style="background:${isOver?'var(--accent)':'#666'}">${isOver?'O':'U'}</div>`;
+        });
+        document.getElementById('stat-ou').innerHTML = `<div class="stat-pill-box"><span class="stat-pill-label">Over 4</span><span class="stat-pill-val">${(over/50*100).toFixed(0)}%</span></div><div class="stat-pill-box"><span class="stat-pill-label">Under 5</span><span class="stat-pill-val">${(100-(over/50*100)).toFixed(0)}%</span></div>`;
+    }
+
+    function updateEvenOdd() {
+        const grid = document.getElementById('grid-eo'); if(!grid) return; grid.innerHTML = "";
+        const sample = tickHistory.slice(-50); let even = 0;
+        sample.forEach(p => {
+            const d = parseInt(p.toFixed(assetDecimals).slice(-1));
+            const isEven = d % 2 === 0; if(isEven) even++;
+            grid.innerHTML += `<div class="letter-tile" style="background:${isEven?'var(--accent)':'var(--warn)'}">${isEven?'E':'O'}</div>`;
+        });
+        document.getElementById('stat-eo').innerHTML = `<div class="stat-pill-box"><span class="stat-pill-label">Even</span><span class="stat-pill-val">${(even/50*100).toFixed(0)}%</span></div><div class="stat-pill-box"><span class="stat-pill-label">Odd</span><span class="stat-pill-val">${(100-(even/50*100)).toFixed(0)}%</span></div>`;
+    }
+
+    function updateRiseFall() {
+        const grid = document.getElementById('grid-rf'); if(!grid) return; grid.innerHTML = "";
+        const sample = tickHistory.slice(-51); let rise = 0;
+        for(let i=1; i<sample.length; i++) {
+            const isRise = sample[i] > sample[i-1]; if(isRise) rise++;
+            grid.innerHTML += `<div class="letter-tile" style="background:${isRise?'var(--up)':'var(--down)'}">${isRise?'R':'F'}</div>`;
+        }
+        document.getElementById('stat-rf').innerHTML = `<div class="stat-pill-box"><span class="stat-pill-label">Rise</span><span class="stat-pill-val">${(rise/50*100).toFixed(0)}%</span></div><div class="stat-pill-box"><span class="stat-pill-label">Fall</span><span class="stat-pill-val">${(100-(rise/50*100)).toFixed(0)}%</span></div>`;
+    }
+
+    function updatePrice(tick) {
+        const f = tick.quote.toFixed(assetDecimals);
+        document.getElementById('main-val').innerText = f.slice(0, -1);
+        document.getElementById('last-digit').innerText = f.slice(-1);
+        document.getElementById('last-digit').style.color = tick.quote > lastPrice ? "var(--up)" : "var(--down)";
+        lastPrice = tick.quote;
+        setTimeout(() => positionBlueArrow(), 10);
+    }
+
+    function initMarketMenu() {
+        if(!allSymbols.length) allSymbols = fallbackSymbols;
+        const nav = document.getElementById('market-nav');
+        if(!nav) return;
+        nav.innerHTML = "";
+        const markets = [...new Set(allSymbols.map(s => s.market_display_name))];
+        markets.forEach(m => {
+            const btn = document.createElement('div'); btn.className = 'pill-btn'; btn.innerText = m;
+            btn.onclick = () => { 
+                document.querySelectorAll('#market-nav .pill-btn').forEach(b => b.classList.remove('active')); 
+                btn.classList.add('active'); 
+                document.getElementById('expansion-panel').style.display = 'flex'; 
+                renderSubMarkets(m); 
+            };
+            nav.appendChild(btn);
+        });
+    }
+
+    function renderSubMarkets(mName) {
+        const nav = document.getElementById('sub-nav');
+        const selector = document.getElementById('asset-selector');
+        const subs = [...new Set(allSymbols.filter(s => s.market_display_name === mName).map(s => s.submarket_display_name))];
+        nav.innerHTML = "";
+        subs.forEach(s => { 
+            const btn = document.createElement('div'); 
+            btn.className = 'pill-btn'; 
+            btn.innerText = s; 
+            btn.onclick = () => { 
+                nav.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('selected-highlight'));
+                btn.classList.add('selected-highlight');
+                selector.classList.add('next-step');
+                populateAssets(mName, s); 
+            }; 
+            nav.appendChild(btn); 
+        });
+    }
+
+    function populateAssets(market, sub) {
+        const drop = document.getElementById('asset-selector');
+        const list = allSymbols.filter(s => s.market_display_name === market && s.submarket_display_name === sub);
+        drop.innerHTML = `<option disabled selected>Select Asset</option>`;
+        list.forEach(item => { const opt = document.createElement('option'); opt.value = item.symbol; opt.text = item.display_name; opt.dataset.pip = item.pip; drop.appendChild(opt); });
+    }
+
+    document.getElementById('asset-selector').onchange = (e) => {
+        e.target.classList.remove('next-step');
+        currentAsset = e.target.value;
+        const pip = e.target.options[e.target.selectedIndex].dataset.pip;
+        assetDecimals = Math.abs(Math.round(Math.log10(parseFloat(pip)))) || 2;
+        document.getElementById('trading-ui').style.display = 'block';
+        if(useMockData) {
+            tickHistory = [];
+            for(let i=0;i<100;i++) tickHistory.push(generateMockPrice());
+            lastPrice = tickHistory[tickHistory.length-1];
+            refreshAll();
+        } else if(socket && socket.readyState === WebSocket.OPEN) {
+            tickHistory = [];
+            socket.send(JSON.stringify({ "forget_all": "ticks" }));
+            socket.send(JSON.stringify({ "ticks_history": currentAsset, "count": 1000, "end": "latest" }));
+            socket.send(JSON.stringify({ "ticks": currentAsset, "subscribe": 1 }));
+        }
+    };
+
+    function toggleMenu() { document.getElementById('side-menu').classList.toggle('open'); document.getElementById('overlay').style.display = document.getElementById('side-menu').classList.contains('open') ? 'block' : 'none'; }
+    function toggleTheme() { const isDark = document.documentElement.getAttribute('data-theme') === 'dark'; if (isDark) { document.documentElement.removeAttribute('data-theme'); } else { document.documentElement.setAttribute('data-theme', 'dark'); } setTimeout(positionBlueArrow, 30); }
+    function closePanel() { document.getElementById('expansion-panel').style.display = 'none'; document.getElementById('asset-selector').classList.remove('next-step'); }
+    function toggleTV() { const m = document.getElementById('tv-modal'); const o = document.getElementById('modal-overlay'); const v = m.style.display === 'block'; m.style.display = v ? 'none' : 'block'; o.style.display = v ? 'none' : 'block'; }
+
+    function updateNavLine() {
+        const container = document.getElementById('trade-nav');
+        const activeTab = container.querySelector('.nav-tab.active');
+        const indicator = document.getElementById('nav-indicator');
+        if (activeTab && indicator) {
+            indicator.style.width = `${activeTab.offsetWidth}px`;
+            indicator.style.left = `${activeTab.offsetLeft}px`;
+        }
+    }
+
+    function scrollToPanel(i) { 
+        const container = document.getElementById('swipe-box');
+        container.scrollTo({ left: i * container.offsetWidth, behavior: 'smooth' }); 
+    }
+
+    document.getElementById('swipe-box').addEventListener('scroll', () => {
+        const container = document.getElementById('swipe-box');
+        const index = Math.round(container.scrollLeft / container.offsetWidth);
+        const tabs = document.querySelectorAll('#trade-nav .nav-tab');
+        tabs.forEach((tab, i) => {
+            if (i === index) tab.classList.add('active');
+            else tab.classList.remove('active');
+        });
+        updateNavLine();
+    });
+
+    window.addEventListener('resize', () => { setTimeout(positionBlueArrow, 100); });
+    
+    const observer = new MutationObserver(() => { positionBlueArrow(); });
+    document.addEventListener('DOMContentLoaded', () => {
+        const gridContainer = document.getElementById('digit-grid');
+        if (gridContainer) observer.observe(gridContainer, { childList: true, subtree: true, attributes: true });
+        const tradingUI = document.getElementById('trading-ui');
+        const watchUI = new MutationObserver(() => { if(tradingUI.style.display === 'block') setTimeout(positionBlueArrow, 50); });
+        watchUI.observe(tradingUI, { attributes: true, attributeFilter: ['style'] });
+    });
+
+    setInterval(() => { positionBlueArrow(); }, 800);
+    
+    // SPLASH SCREEN
+    function initSplash() {
+        const canvas = document.getElementById('money-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, particles = [];
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+        resize();
+        class Particle {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * -height;
+                this.size = 25 + Math.random() * 45;
+                this.speed = 1.5 + Math.random() * 3.5;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.05;
+                this.opacity = 0.15 + Math.random() * 0.35;
+            }
+            update() { this.y += this.speed; this.rotation += this.rotationSpeed; if (this.y > height + 50) this.reset(); }
+            draw() {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
+                ctx.font = `${this.size}px Arial`; ctx.fillStyle = `rgba(0, 255, 65, ${this.opacity})`;
+                ctx.fillText('$', 0, 0); ctx.restore();
+            }
+        }
+        for (let i = 0; i < 45; i++) particles.push(new Particle());
+        function animate() { ctx.clearRect(0, 0, width, height); particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animate); }
+        animate();
+
+        const targetText = "CEOSkitTheTrader";
+        const cont = document.getElementById('decrypt-container');
+        let its = 0;
+        let intv = setInterval(() => {
+            cont.innerHTML = targetText.split("").map((letter, index) => {
+                let char = index < its ? targetText[index] : "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ#$@%"[Math.floor(Math.random() * 40)];
+                if (index < 3 && index < its) return `<span class="splash-red">${char}</span>`;
+                return char;
+            }).join("");
+            if (its >= targetText.length) { 
+                clearInterval(intv); 
+                setTimeout(() => {
+                    const splash = document.getElementById('splash-screen');
+                    splash.style.opacity = '0';
+                    setTimeout(() => { splash.style.display = 'none'; }, 1000);
+                }, 7000); 
+            }
+            its += 0.3;
+        }, 60);
+    }
+    
+    initSplash();
+    initWebSocket();
+    initMarketMenu();
+</script>
+</body>
+</html>
