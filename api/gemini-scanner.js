@@ -1,35 +1,34 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 export default async function handler(req, res) {
-  // 1. Initialize the AI with your Environment Variable
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  
+  // Use gemini-1.5-flash for the fastest response
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    generationConfig: { maxOutputTokens: 500 }
+  });
 
   try {
     const { markets } = req.body;
+    
+    // Simplified prompt to ensure the AI doesn't get confused
+    const prompt = `Analyze these trading markets: ${JSON.stringify(markets)}. 
+    Give a clear BUY/SELL/NEUTRAL signal for each. Keep it brief.`;
 
-    // 2. Craft the prompt for the Market Scanner
-    const prompt = `Context: Binary Options Trading. 
-    Analyze these markets (last 100 ticks each). 
-    Provide a brief signal (BUY/SELL/NEUTRAL) and a prediction for: 
-    Rise/Fall, Even/Odd, and Over/Under. 
-    Data: ${JSON.stringify(markets)}`;
-
-    // 3. Get the response from Gemini
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    // 4. Send the successful analysis back to your website
-    res.status(200).json({ 
-      analysis: text.replace(/\n/g, '<br>') 
-    });
+    if (!text) {
+      throw new Error("AI returned empty content");
+    }
+
+    res.status(200).json({ message: text });
 
   } catch (error) {
-    console.error("Gemini Error:", error);
-    res.status(500).json({ 
-      error: "AI Connection Failed. Please check your API Key in Vercel Settings.",
-      details: error.message 
-    });
+    console.error("Scanner Error:", error);
+    res.status(500).json({ message: "AI Error: " + error.message });
   }
 }
+
