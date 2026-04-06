@@ -171,14 +171,13 @@
 
             let allMarketData = [];
 
-            // Fetch data for each market sequentially to avoid socket flooding
-            for (let market of scanTargets.slice(0, 8)) { // Scan top 8 for speed
+            for (let market of scanTargets.slice(0, 8)) {
                 scannerLog.innerHTML += `> Extracting 1000 ticks from ${market.display_name}...<br>`;
                 const history = await fetchHistory(market.symbol);
                 allMarketData.push({
                     name: market.display_name,
                     symbol: market.symbol,
-                    ticks: history.slice(-100) // Send last 100 to Gemini for pattern recognition
+                    ticks: history.slice(-100)
                 });
             }
 
@@ -190,9 +189,14 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ markets: allMarketData })
                 });
+                
                 const result = await response.json();
                 
-                scannerLog.innerHTML = `<div style="color:#00ff00; padding:10px; border:1px solid #00ff00; margin-bottom:10px;">SCAN COMPLETE - GEMINI ADVISORY:</div>` + result.analysis;
+                // --- FIX: This line checks for BOTH possible result names ---
+                const finalAdvice = result.message || result.analysis || "Analysis complete, but no text returned.";
+                
+                scannerLog.innerHTML = `<div style="color:#00ff00; padding:10px; border:1px solid #00ff00; margin-bottom:10px;">SCAN COMPLETE - GEMINI ADVISORY:</div>` + finalAdvice;
+                
             } catch (err) {
                 scannerLog.innerHTML += `<br><span style="color:red">ERROR: AI Connection Failed. Check Vercel API deployment.</span>`;
             }
@@ -295,7 +299,7 @@
                 } else if (activeType === 'over_under') {
                     n.innerText = t.digit > 4 ? 'O' : 'U'; isMatch = (t.digit > 4);
                 } else if (activeType === 'matches_differs') {
-                    n.innerText = t.digit; isMatch = (t.digit === 0); // Default match 0
+                    n.innerText = t.digit; isMatch = (t.digit === 0);
                 } else {
                     n.innerText = t.diff >= 0 ? 'R' : 'F'; isMatch = (t.diff >= 0);
                 }
