@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CEOSKIT | Pro Trader Elite & AI Scanner</title>
+    <style>
+        :root {
+            --bg-white: #ffffff;
+            --panel-bg: #f8f9fa;
+            --accent: #3f51b5; 
+            --green: #00c853; 
+            --orange: #ff9100; 
+            --red: #ff5252;    
+            --border: #dee2e6;
+            --dark-gray: #444;
+            --deep-black: #000000;
+            --seq-1: #673ab7; 
+            --seq-2: #009688; 
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background: var(--bg-white); color: #1a1a1a; margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+
+        header { padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; background: white; }
+        .brand { font-weight: 900; font-size: 1.1rem; }
+
+        .icon-toolbar { display: flex; gap: 10px; padding: 10px 20px; background: #fff; border-bottom: 1px solid #f0f0f0; align-items: center; overflow-x: auto; }
+        .tool-btn { padding: 8px 12px; background: var(--panel-bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 900; display: flex; align-items: center; gap: 5px; text-transform: uppercase; white-space: nowrap; }
+        .btn-scanner { background: var(--accent); color: white; border: none; }
+
+        #chart-container { width: 100%; height: 600px; background: #131722; display: none; border-bottom: 3px solid var(--accent); }
+        iframe { width: 100%; height: 100%; border: none; }
+
+        .nav-bar { display: flex; background: #ffffff; overflow-x: auto; border-bottom: 1px solid #f0f0f0; }
+        .nav-item { padding: 15px 18px; font-size: 12px; font-weight: 900; cursor: pointer; color: var(--deep-black); white-space: nowrap; text-transform: uppercase; border-bottom: 3px solid transparent; }
+        .nav-item.active { color: var(--accent); border-bottom-color: var(--accent); background: #f0f2ff; }
+
+        .market-shield { margin: 15px 10px; padding: 15px; border: 2px solid var(--border); border-radius: 12px; position: relative; background: #fff; }
+        .shield-label { position: absolute; top: -10px; left: 15px; background: #fff; padding: 0 8px; font-size: 10px; font-weight: 900; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
+
+        #contract-nav { display: grid; grid-template-columns: repeat(2, 1fr); background: #fafafa; padding: 8px; gap: 8px; border-bottom: 1px solid #eee; margin-bottom: 10px; }
+        .sub-nav-item { padding: 12px; font-size: 12px; font-weight: 900; cursor: pointer; color: var(--deep-black); text-transform: uppercase; background: #fff; border: 2px solid var(--border); border-radius: 8px; text-align: center; }
+        .sub-nav-item.active { color: var(--accent); border-color: var(--accent); background: #e8eaf6; }
+
+        main { flex: 1; padding: 0 10px; display: flex; flex-direction: column; }
+        #live-price { font-size: 3.5rem; font-weight: 800; text-align: center; margin: 20px 0; color: var(--deep-black); }
+
+        #digit-panel { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px 8px; padding: 35px 15px 15px 15px; background: var(--panel-bg); border-radius: 18px; border: 1px solid var(--border); margin-bottom: 25px; }
+        #digit-cursor { position: absolute; width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid var(--accent); transition: all 0.2s; z-index: 99; pointer-events: none; }
+        
+        .digit-group { display: flex; flex-direction: column; align-items: center; }
+        .digit-circle { width: 42px; height: 42px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 4px; border: 1px solid #eee; }
+        .rank-1 .digit-circle { background: var(--green); color: white; }
+        .rank-2 .digit-circle { background: var(--orange); color: white; }
+        .rank-last .digit-circle { background: var(--red); color: white; }
+
+        .window-container { background: #f8f9fa; border: 1px solid var(--border); border-radius: 15px; padding: 15px; margin-bottom: 30px; }
+        .window-stats-header { display: flex; justify-content: space-around; margin-bottom: 12px; font-weight: 900; font-size: 13px; text-transform: uppercase; color: var(--deep-black); border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        
+        #rolling-window { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+        .roll-node { aspect-ratio: 1/1; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; color: white; }
+        
+        .node-neutral { background: var(--dark-gray); }
+        .node-green { background: var(--green); }
+        .node-red { background: var(--red); }
+        .node-repeat-A { background: var(--seq-1) !important; border: 2px solid rgba(255,255,255,0.5); }
+        .node-repeat-B { background: var(--seq-2) !important; border: 2px solid rgba(255,255,255,0.5); }
+
+        /* SCANNER STYLES */
+        #scanner-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; flex-direction: column; padding: 20px; color: white; }
+        .scanner-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        #scanner-log { flex: 1; overflow-y: auto; background: #111; padding: 15px; border-radius: 10px; font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.6; }
+        .scan-item { border-bottom: 1px solid #222; padding: 8px 0; display: flex; justify-content: space-between; }
+        .signal-buy { color: var(--green); font-weight: bold; }
+        .signal-sell { color: var(--red); font-weight: bold; }
+        .btn-start-scan { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 10px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">CEOSKIT <span style="color:var(--accent)">TRADER</span></div>
+    </header>
+
+    <div class="icon-toolbar">
+        <div class="tool-btn" id="toggle-chart">📊 <span id="chart-text">Analyze Chart</span></div>
+        <div class="tool-btn btn-scanner" id="open-scanner">🔍 <span>AI Market Scanner</span></div>
+    </div>
+
+    <div id="scanner-overlay">
+        <div class="scanner-header">
+            <h3>GEMINI AI DEEP SCAN</h3>
+            <button onclick="document.getElementById('scanner-overlay').style.display='none'" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div id="scanner-log">
+            Ready to scan Volatility & Jump Indices...<br>
+            Gemini will analyze 1,000 ticks for trend shifts, digit patterns, and volatility spikes.
+        </div>
+        <button class="btn-start-scan" id="start-scan-btn">START FULL MARKET ANALYSIS</button>
+    </div>
+
+    <div id="chart-container">
+        <iframe src="https://tradingview.binary.com" allowfullscreen></iframe>
+    </div>
+
+    <nav class="nav-bar">
+        <div class="nav-item active" data-cat="volatility">VOLATILITY</div>
+        <div class="nav-item" data-cat="crash_boom">CRASH & BOOM</div>
+        <div class="nav-item" data-cat="step">STEP INDICES</div>
+        <div class="nav-item" data-cat="jump">JUMP INDICES</div>
+    </nav>
+
+    <div class="market-shield">
+        <div class="shield-label" id="shield-title">Volatility Indices</div>
+        <select id="market-select" style="width:100%; height:45px; font-weight:900; color:var(--deep-black)"></select>
+    </div>
+
+    <nav id="contract-nav">
+        <div class="sub-nav-item active" data-type="rise_fall">rise / fall</div>
+        <div class="sub-nav-item" data-type="even_odd">even / odd</div>
+        <div class="sub-nav-item" data-type="over_under">over / under</div>
+        <div class="sub-nav-item" data-type="matches_differs">matches / differs</div>
+    </nav>
+
+    <main>
+        <h1 id="live-price">0.00</h1>
+        <div id="analysis-tools">
+            <div id="digit-panel"><div id="digit-cursor" class="hidden"></div></div>
+            <div class="window-container">
+                <div class="window-stats-header">
+                    <div id="stat-left">--: --%</div>
+                    <div id="stat-right">--: --%</div>
+                </div>
+                <div id="rolling-window"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const APP_ID = 1089;
+        let socket, masterSymbols = [], fullHistory = [], activeCat = 'volatility', activeType = 'rise_fall';
+        
+        // UI Elements
+        const chartBox = document.getElementById('chart-container'), 
+              toggleBtn = document.getElementById('toggle-chart'),
+              priceEl = document.getElementById('live-price'), 
+              rollEl = document.getElementById('rolling-window'), 
+              digitPanel = document.getElementById('digit-panel'),
+              analysisTools = document.getElementById('analysis-tools'), 
+              contractNav = document.getElementById('contract-nav');
+
+        // SCANNER LOGIC
+        const openScanner = document.getElementById('open-scanner');
+        const scannerOverlay = document.getElementById('scanner-overlay');
+        const startScanBtn = document.getElementById('start-scan-btn');
+        const scannerLog = document.getElementById('scanner-log');
+
+        openScanner.onclick = () => scannerOverlay.style.display = 'flex';
+
+        startScanBtn.onclick = async () => {
+            startScanBtn.disabled = true;
+            startScanBtn.innerText = "SCANNING IN PROGRESS...";
+            scannerLog.innerHTML = "<b>Initializing Deep Scan...</b><br>";
+
+            const scanTargets = masterSymbols.filter(m => 
+                m.symbol.startsWith('R_') || m.symbol.startsWith('1HZ') || m.symbol.includes('JUMP')
+            );
+
+            let allMarketData = [];
+
+            // Fetch data for each market sequentially to avoid socket flooding
+            for (let market of scanTargets.slice(0, 8)) { // Scan top 8 for speed
+                scannerLog.innerHTML += `> Extracting 1000 ticks from ${market.display_name}...<br>`;
+                const history = await fetchHistory(market.symbol);
+                allMarketData.push({
+                    name: market.display_name,
+                    symbol: market.symbol,
+                    ticks: history.slice(-100) // Send last 100 to Gemini for pattern recognition
+                });
+            }
+
+            scannerLog.innerHTML += `<br><b style="color:var(--orange)">AI PROCESSING: Sending to Gemini Elite...</b><br>`;
+
+            try {
+                const response = await fetch('/api/gemini-scanner', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ markets: allMarketData })
+                });
+                const result = await response.json();
+                
+                scannerLog.innerHTML = `<div style="color:#00ff00; padding:10px; border:1px solid #00ff00; margin-bottom:10px;">SCAN COMPLETE - GEMINI ADVISORY:</div>` + result.analysis;
+            } catch (err) {
+                scannerLog.innerHTML += `<br><span style="color:red">ERROR: AI Connection Failed. Check Vercel API deployment.</span>`;
+            }
+
+            startScanBtn.disabled = false;
+            startScanBtn.innerText = "RESTART FULL MARKET ANALYSIS";
+        };
+
+        function fetchHistory(symbol) {
+            return new Promise((resolve) => {
+                const tempSocket = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`);
+                tempSocket.onopen = () => {
+                    tempSocket.send(JSON.stringify({ ticks_history: symbol, count: 1000, end: "latest", style: "ticks" }));
+                };
+                tempSocket.onmessage = (msg) => {
+                    const data = JSON.parse(msg.data);
+                    if (data.history) {
+                        resolve(data.history.prices);
+                        tempSocket.close();
+                    }
+                };
+            });
+        }
+
+        // --- CORE TRADER LOGIC ---
+
+        toggleBtn.onclick = () => {
+            const isHidden = getComputedStyle(chartBox).display === 'none';
+            chartBox.style.display = isHidden ? 'block' : 'none';
+            document.getElementById('chart-text').innerText = isHidden ? 'Hide Chart' : 'Analyze Chart';
+        };
+
+        function setupDigitGrid() {
+            digitPanel.innerHTML = '<div id="digit-cursor" class="hidden"></div>';
+            for(let i=0; i<=9; i++) {
+                const g = document.createElement('div'); g.className = 'digit-group'; g.id = `group-${i}`;
+                g.innerHTML = `<div class="digit-circle">${i}</div><span class="pct-label" style="font-weight:900">0%</span>`;
+                digitPanel.appendChild(g);
+            }
+        }
+
+        function moveCursor(digit) {
+            const targetGroup = document.getElementById(`group-${digit}`);
+            const cursorObj = document.getElementById('digit-cursor');
+            if(!targetGroup || !cursorObj || analysisTools.classList.contains('hidden')) return;
+            cursorObj.classList.remove('hidden');
+            cursorObj.style.left = (targetGroup.offsetLeft + (targetGroup.offsetWidth / 2) - 10) + "px";
+            cursorObj.style.top = (targetGroup.offsetTop - 15) + "px";
+        }
+
+        function connect() {
+            socket = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`);
+            socket.onopen = () => socket.send(JSON.stringify({ active_symbols: "brief" }));
+            socket.onmessage = (msg) => {
+                const data = JSON.parse(msg.data);
+                if (data.msg_type === 'active_symbols') { masterSymbols = data.active_symbols; renderList('volatility'); }
+                if (data.msg_type === 'history' || data.msg_type === 'tick') {
+                    const pips = (data.tick ? data.tick.pip_size : (data.history ? data.pip_size : 2));
+                    const prices = data.tick ? [data.tick.quote] : data.history.prices;
+                    prices.forEach(p => {
+                        const d = parseInt(p.toFixed(pips).slice(-1));
+                        const prev = fullHistory.length > 0 ? fullHistory[fullHistory.length-1].price : p;
+                        fullHistory.push({ price: p, digit: d, diff: p - prev });
+                    });
+                    if (fullHistory.length > 1000) fullHistory.splice(0, fullHistory.length - 1000);
+                    if (data.tick) {
+                        const last = fullHistory[fullHistory.length-1];
+                        priceEl.innerHTML = `${last.price.toFixed(pips).slice(0, -1)}<span style="color:var(--accent)">${last.digit}</span>`;
+                        moveCursor(last.digit);
+                    }
+                    updateStats();
+                }
+            };
+        }
+
+        function updateStats() {
+            if (fullHistory.length === 0 || analysisTools.classList.contains('hidden')) return;
+            const windowData = fullHistory.slice(-50);
+            rollEl.innerHTML = '';
+            let countPrimary = 0, lastRepeatDigit = null, colorToggle = false;
+
+            const showRepeats = (activeType === 'matches_differs');
+            const repeatStatus = windowData.map((t, i) => {
+                if (!showRepeats) return false;
+                return (i < windowData.length - 1 && t.digit === windowData[i+1].digit) || (i > 0 && t.digit === windowData[i-1].digit);
+            });
+
+            windowData.forEach((t, i) => {
+                const n = document.createElement('div'); n.className = 'roll-node';
+                let isMatch = false;
+
+                if (repeatStatus[i]) {
+                    if (t.digit !== lastRepeatDigit) colorToggle = !colorToggle;
+                    n.classList.add(colorToggle ? 'node-repeat-A' : 'node-repeat-B');
+                    lastRepeatDigit = t.digit;
+                }
+
+                if (activeType === 'even_odd') {
+                    n.innerText = t.digit % 2 === 0 ? 'E' : 'O'; isMatch = (t.digit % 2 === 0);
+                } else if (activeType === 'over_under') {
+                    n.innerText = t.digit > 4 ? 'O' : 'U'; isMatch = (t.digit > 4);
+                } else if (activeType === 'matches_differs') {
+                    n.innerText = t.digit; isMatch = (t.digit === 0); // Default match 0
+                } else {
+                    n.innerText = t.diff >= 0 ? 'R' : 'F'; isMatch = (t.diff >= 0);
+                }
+
+                if (!repeatStatus[i]) n.classList.add(isMatch ? 'node-green' : 'node-red');
+                if (isMatch) countPrimary++;
+                rollEl.appendChild(n);
+            });
+
+            const priPct = ((countPrimary / windowData.length) * 100).toFixed(0);
+            document.getElementById('stat-left').innerText = `${activeType.replace('_','/').toUpperCase()}: ${priPct}%`;
+            document.getElementById('stat-right').innerText = `ALT: ${100-priPct}%`;
+
+            const counts = Array(10).fill(0);
+            fullHistory.forEach(t => counts[t.digit]++);
+            const stats = counts.map((count, digit) => ({ digit, count, pct: ((count / fullHistory.length) * 100).toFixed(1) }));
+            const sorted = [...stats].sort((a, b) => b.count - a.count);
+            stats.forEach(s => {
+                const group = document.getElementById(`group-${s.digit}`);
+                if(group) {
+                    group.className = 'digit-group';
+                    if (s.digit === sorted[0].digit) group.classList.add('rank-1');
+                    else if (s.digit === sorted[9].digit) group.classList.add('rank-last');
+                    group.querySelector('.pct-label').innerText = `${s.pct}%`;
+                }
+            });
+        }
+
+        function renderList(cat) {
+            activeCat = cat;
+            const isDigitMarket = (cat === 'volatility' || cat === 'jump');
+            analysisTools.classList.toggle('hidden', !isDigitMarket);
+            contractNav.classList.toggle('hidden', !isDigitMarket);
+            
+            const filtered = masterSymbols.filter(m => {
+                const d = m.display_name.toUpperCase();
+                if (cat === 'volatility') return m.symbol.startsWith('R_') || m.symbol.startsWith('1HZ');
+                if (cat === 'crash_boom') return d.includes('CRASH') || d.includes('BOOM');
+                if (cat === 'step') return d.includes('STEP');
+                if (cat === 'jump') return d.includes('JUMP');
+                return false;
+            });
+
+            const select = document.getElementById('market-select');
+            select.innerHTML = filtered.map(m => `<option value="${m.symbol}">${m.display_name}</option>`).join('');
+            select.onchange = (e) => {
+                fullHistory = [];
+                socket.send(JSON.stringify({ forget_all: "ticks" }));
+                socket.send(JSON.stringify({ ticks_history: e.target.value, count: 1000, end: "latest", style: "ticks" }));
+                socket.send(JSON.stringify({ ticks: e.target.value, subscribe: 1 }));
+            };
+            if (filtered.length > 0) select.dispatchEvent(new Event('change'));
+        }
+
+        document.querySelectorAll('.nav-item').forEach(btn => btn.onclick = function() {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            this.classList.add('active'); renderList(this.dataset.cat);
+        });
+
+        document.querySelectorAll('.sub-nav-item').forEach(btn => btn.onclick = function() {
+            document.querySelectorAll('.sub-nav-item').forEach(i => i.classList.remove('active'));
+            this.classList.add('active'); activeType = this.dataset.type; updateStats();
+        });
+
+        setupDigitGrid();
+        connect();
+    </script>
+</body>
+</html>
+.
