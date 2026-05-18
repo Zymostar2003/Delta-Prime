@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Signal Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@400;500&family=Montserrat:wght@800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@400;500&family=Montserrat:wght@800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"></noscript>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- SIGNAL HISTORY DRAWER -->
+<div id="sig-drawer" onclick="if(event.target===this)closeSigDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:20000;align-items:flex-end;backdrop-filter:blur(4px)">
+  <div style="width:100%;max-height:84vh;background:var(--panel-bg);border-radius:16px 16px 0 0;border-top:2px solid var(--accent);display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <span style="font-size:14px;font-weight:900;color:var(--text-main)">📋 Signal Log</span>
+      <div onclick="closeSigDrawer()" style="width:30px;height:30px;border-radius:50%;background:var(--surface);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted)">✕</div>
+    </div>
+    <div id="wr-card" style="display:none;flex-shrink:0;padding:11px 16px;background:var(--surface);border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Session Win Rate</span>
+        <span id="wr-pct" style="font-size:1.5rem;font-weight:900;font-family:monospace;color:#00c853">—</span>
+      </div>
+      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div id="wr-bar" style="height:100%;border-radius:3px;width:0%;background:#00c853;transition:width .5s,background .5s"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;color:var(--muted);margin-top:4px;font-family:monospace">
+        <span id="wr-w">0 wins</span><span id="wr-l">0 losses</span><span id="wr-t">0 trades</span>
+      </div>
+    </div>
+    <div style="flex-shrink:0;padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);flex-shrink:0">Log result:</span>
+      <button onclick="logTrade('win')" style="flex:1;padding:10px;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;border:1.5px solid #00c853;background:rgba(0,200,83,.12);color:#00c853;font-family:inherit">✓ WIN</button>
+      <button onclick="logTrade('loss')" style="flex:1;padding:10px;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;border:1.5px solid #ef4444;background:rgba(239,68,68,.1);color:#ef4444;font-family:inherit">✗ LOSS</button>
+      <button onclick="clearTrades()" style="padding:8px 10px;border-radius:8px;font-size:10px;font-weight:700;background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;flex-shrink:0;font-family:inherit">Clear</button>
+    </div>
+    <div id="sig-entries" style="overflow-y:auto;flex:1;padding:0 16px 20px">
+      <div style="text-align:center;color:var(--muted);font-size:11px;padding:28px">Signals log here automatically</div>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<!-- ── LOGIN OVERLAY ── -->
+<div id="login-overlay">
+    <div class="lo-top-bar"></div>
+    <div class="lo-logo">
+        <h1><span class="lc">CEO</span><span class="ls">SkitTheTrader</span></h1>
+    </div>
+    <div class="lo-card">
+        <div class="lo-head">
+            <div class="lo-auth-lbl"><span class="lo-dot"></span>Deriv Authorization</div>
+            <div class="lo-badge">Stand-Alone</div>
+        </div>
+        <div id="lo-error"></div>
+        <div id="lo-acct-grid"></div>
+        <a id="lo-login-btn" href="#" style="
+            width:100%;padding:18px 24px;background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);
+            border:none;border-radius:14px;color:white;font-size:17px;font-weight:700;cursor:pointer;
+            transition:all .3s;display:flex;align-items:center;justify-content:center;gap:11px;
+            box-shadow:0 10px 28px rgba(220,38,38,.3);margin-bottom:16px;text-transform:uppercase;
+            letter-spacing:.5px;text-decoration:none;">
+            <span style="font-size:20px;">→</span> Connect Deriv Account
+        </a>
+        <button onclick="openAdminPanel()" style="width:100%;padding:12px 24px;background:none;border:1.5px solid #e2e8f0;border-radius:14px;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
+            🔑 Advanced: Use PAT Token
+        </button>
+        <p class="lo-desc">Synthetic Indices, Digits, Rise/Fall &amp; MCE Signals</p>
+        <a id="lo-create-link" href="#" class="lo-create" onclick="loHandleSignup(event)">
+            <span>✨</span> Create Free Deriv Account
+        </a>
+    </div>
+    <p class="lo-footer">Secure OAuth 2.0 • Your credentials are never stored</p>
+    <div style="margin-top:14px;text-align:center;">
+        <button onclick="openAdminPanel()" style="background:none;border:1px solid #e2e8f0;border-radius:10px;padding:8px 18px;font-size:11px;font-weight:700;color:#64748b;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+            ⚙️ API Settings
+        </button>
+    </div>
+</div>
+
+<!-- ── OAUTH CALLBACK LOADING ── -->
+<div id="login-callback">
+    <div style="font-size:1.8rem;font-weight:900;letter-spacing:-1px;">
+        <span style="color:#ef4444;font-family:'Inter',sans-serif;">CEO</span><span style="color:#0f172a;font-family:'Playfair Display',serif;font-style:italic;">Skit</span>
+    </div>
+    <div class="lo-spinner"></div>
+    <div class="lo-cb-msg" id="lo-cb-msg">Authorizing your account…</div>
+    <div class="lo-cb-sub" id="lo-cb-sub">Please wait</div>
+</div>
+
+<div id="splash-screen">
+    <canvas id="money-canvas"></canvas>
+    <div id="decrypt-container"></div>
+</div>
+
+<!-- ── BOOT LOADER — shown after splash, before app is ready ── -->
+<div id="boot-loader" style="
+  position:fixed;inset:0;z-index:9500;background:#09090B;
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  opacity:1;transition:opacity .5s ease;
+">
+  <!-- Logo mark -->
+  <div style="margin-bottom:28px;text-align:center;">
+    <div style="font-size:1.6rem;font-weight:900;letter-spacing:2px;color:#fff;font-family:'DM Sans',sans-serif;">
+      <span style="color:#E53935;">CEO</span><span style="color:#fff;">Skit</span>
+    </div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:3px;color:#555;text-transform:uppercase;margin-top:3px;font-family:'DM Mono',monospace;">
+      Precision Signal Engine
+    </div>
+  </div>
+
+  <!-- Progress track -->
+  <div style="width:240px;">
+    <div style="height:3px;background:#1e1e1e;border-radius:2px;overflow:hidden;margin-bottom:14px;">
+      <div id="boot-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6366F1,#10B981);border-radius:2px;transition:width .5s ease;"></div>
+    </div>
+    <!-- Step label -->
+    <div id="boot-step" style="font-size:10px;font-weight:700;color:#999;letter-spacing:.8px;text-align:center;font-family:'DM Mono',monospace;min-height:16px;">
+      Initialising…
+    </div>
+    <!-- Step dots -->
+    <div style="display:flex;justify-content:center;gap:8px;margin-top:18px;">
+      <div class="boot-dot" id="bdot-0"></div>
+      <div class="boot-dot" id="bdot-1"></div>
+      <div class="boot-dot" id="bdot-2"></div>
+      <div class="boot-dot" id="bdot-3"></div>
+    </div>
+  </div>
+</div>
+
+<div id="chart-modal" class="chart-modal">
+    <div class="chart-modal-content">
+        <div class="chart-modal-header">
+            <div class="chart-modal-title">📊 Live Chart</div>
+            <div class="close-chart" onclick="closeChartModal()" title="Close Chart">✕</div>
+        </div>
+        <iframe src="https://tradingview.binary.com" allowfullscreen></iframe>
+    </div>
+</div>
+
+<div id="ai-modal">
+    <div class="ai-sheet">
+        <div class="ai-head">
+            <div class="ai-icon-badge" id="ai-icon-badge">📊</div>
+            <div class="ai-head-info">
+                <div class="ai-title" id="ai-title">ANALYSIS</div>
+                <div class="ai-sub" id="ai-sub">Reading live market...</div>
+                <div class="ai-meta">
+                    <div class="live-dot"></div>
+                    <span class="live-txt">LIVE</span>
+                    <span class="ai-ticks" id="ai-ticks">0 ticks</span>
+                </div>
+            </div>
+            <div class="ai-x" onclick="closeAI()">✕</div>
+        </div>
+        <div class="ai-body" id="ai-body"></div>
+    </div>
+</div>
+
+
+<!-- Tools Overlay -->
+<div id="tools-overlay">
+  <div class="tools-header">
+    <div class="tools-header-icon">🛠️</div>
+    <div class="tools-header-title">Tools</div>
+    <div class="tools-header-close" onclick="closeTools()">✕</div>
+  </div>
+  <div class="tools-tabs">
+    <div class="tools-tab tact" onclick="switchToolsTab('risk')">🛡️ Risk</div>
+    <div class="tools-tab" onclick="switchToolsTab('calc')">🧮 Calc</div>
+    <div class="tools-tab" onclick="switchToolsTab('report')">📋 Report</div>
+  </div>
+  <div class="tools-body">
+    <div id="tools-panel-risk" class="tools-panel tshow"></div>
+    <div id="tools-panel-calc" class="tools-panel">
+      <div id="tools-rc-mount"></div>
+    </div>
+    <div id="tools-panel-report" class="tools-panel"></div>
+  </div>
+</div>
+
+<!-- Smart Analysis Overlay -->
+<div id="smart-overlay">
+
+    <!-- Header -->
+    <div class="sa-header">
+        <div class="sa-icon">🧠</div>
+        <div>
+            <div class="sa-title">Smart Analysis</div>
+            <div class="sa-sub">By CEOskit — Live Digit Engine</div>
+        </div>
+        <div class="sa-live">
+            <div class="sa-live-dot"></div>
+            <div class="sa-live-txt">LIVE</div>
+            <div class="sa-ticks" id="sa-tick-count">0</div>
+        </div>
+        <div class="sa-close" onclick="closeSmartAnalysis()">✕</div>
+    </div>
+
+    <!-- Market category tabs -->
+    <div class="sa-nav" id="sa-nav">
+        <div class="sa-nav-item active" data-sacat="volatility">📈 Volatility</div>
+        <div class="sa-nav-item" data-sacat="crash_boom">💥 Crash & Boom</div>
+        <div class="sa-nav-item" data-sacat="step">📉 Step Indices</div>
+        <div class="sa-nav-item" data-sacat="jump">🚀 Jump Indices</div>
+    </div>
+
+    <!-- Market select -->
+    <div class="sa-market-bar">
+        <select id="sa-market-select" style="width:100%;background:var(--select-bg);color:var(--text-main);border:1px solid var(--border);padding:10px 12px;border-radius:8px;font-weight:900;font-size:12px;"></select>
+    </div>
+
+    <!-- Contract type -->
+    <div class="sa-contract-grid" id="sa-contract-grid">
+        <div class="sa-contract-btn active" data-satype="rise_fall">Rise / Fall</div>
+        <div class="sa-contract-btn" data-satype="even_odd">Even / Odd</div>
+        <div class="sa-contract-btn" data-satype="over_under">Over / Under</div>
+        <div class="sa-contract-btn" data-satype="matches_differs">Matches / Differs</div>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="sa-body">
+        <!-- Live price -->
+        <h1 id="sa-live-price">0.00</h1>
+
+        <!-- Digit panel (mirror of main, but independent) -->
+        <div class="sa-panel-wrap">
+            <div id="sa-digit-panel" style="position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:20px 8px;padding:35px 15px 15px;background:var(--panel-bg);border-radius:18px;border:1px solid var(--border);margin-bottom:16px;">
+                <div id="sa-digit-cursor" style="position:absolute;width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:15px solid #00c853;transition:all .2s;z-index:99;pointer-events:none;display:none;"></div>
+            </div>
+
+            <!-- Window stats -->
+            <div style="background:var(--panel-bg);border:1px solid var(--border);border-radius:15px;padding:14px;margin-bottom:16px;">
+                <!-- Barrier panel (over/under & matches) -->
+                <div id="sa-barrier-panel" style="display:grid;grid-template-columns:repeat(11,1fr);gap:4px;margin-bottom:12px;display:none;"></div>
+
+                <!-- Stats header -->
+                <div style="display:flex;justify-content:space-around;margin-bottom:10px;font-weight:900;font-size:13px;text-transform:uppercase;color:var(--text-main);border-bottom:1px solid var(--border);padding-bottom:8px;">
+                    <div id="sa-stat-left">--: --%</div>
+                    <div id="sa-stat-right">--: --%</div>
+                </div>
+
+                <!-- Rolling window -->
+                <div id="sa-rolling-window" style="display:grid;grid-template-columns:repeat(10,1fr);gap:5px;"></div>
+            </div>
+
+            <!-- Insight card (live analysis tip) -->
+            <div id="sa-insight-card" style="background:rgba(0,200,83,.06);border:1.5px solid #00c853;border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+                <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#00c853;margin-bottom:6px;">🧠 Smart Insight</div>
+                <div id="sa-insight-txt" style="font-size:11px;line-height:1.7;color:var(--text-main);">Waiting for data...</div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div id="menu-overlay" class="menu-overlay" onclick="closeMenu()"></div>
+<div id="side-menu" class="side-menu">
+    <div class="menu-header">CEOSkit <span>Trader</span></div>
+    <!-- Account info row -->
+    <div class="menu-item" style="flex-direction:column;align-items:flex-start;gap:2px;cursor:default;background:var(--panel-bg);">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dark-gray);">Logged in as</div>
+        <div id="menu-loginid" style="font-size:13px;font-weight:900;color:var(--text-main);">—</div>
+        <div id="menu-accounts-list" style="font-size:9px;color:var(--dark-gray);margin-top:2px;"></div>
+    </div>
+    <div class="menu-item theme-toggle-item">
+        <span>🌙 Dark Mode (Black)</span>
+        <div id="theme-switch" class="theme-switch" onclick="toggleThemeMode(event)"><div class="slider"></div></div>
+    </div>
+    <!-- Switch account -->
+    <div id="menu-switch-acct" class="menu-item" style="display:none;" onclick="switchAccount()">
+        <span>🔄</span> Switch Account
+    </div>
+    <!-- Account Actions (new REST API) -->
+    <div class="menu-item" id="menu-reset-demo" onclick="menuResetDemo()" style="color:#00c853;display:none;">
+        <span>🔄</span> Reset Demo Balance
+    </div>
+    <div class="menu-item" id="menu-create-demo" onclick="menuCreateAccount('demo')" style="color:#3b82f6;display:none;">
+        <span>➕</span> Create Demo Account
+    </div>
+    <div class="menu-item" id="menu-create-real" onclick="menuCreateAccount('real')" style="color:#f59e0b;display:none;">
+        <span>➕</span> Create Real Account
+    </div>
+    <!-- Admin Panel -->
+    <div class="menu-item" onclick="openAdminPanel();closeMenu();" style="color:#f59e0b;">
+        <span>⚙️</span> API Admin Panel
+    </div>
+    <!-- Logout -->
+    <div class="menu-item" onclick="logout()" style="color:var(--red);border-top:1px solid var(--border);margin-top:auto;">
+        <span>🚪</span> Logout
+    </div>
+    <div class="social-footer">
+        <div class="social-icon wa-icon" onclick="window.open('https://wa.me/254700000000?text=Hello%20CEOSkit','_blank')">
+            <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.628 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        </div>
+        <div class="social-icon gm-icon" onclick="window.open('mailto:ceoskit@gmail.com','_blank')">
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        </div>
+        <div class="social-icon tt-icon" onclick="window.open('https://tiktok.com/@ceoskit','_blank')">
+            <svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.13-1.47-.13 1.95-.12 3.91-.12 5.86 0 2.44-.8 4.97-2.61 6.64-1.81 1.67-4.44 2.27-6.81 1.83-2.37-.44-4.52-2.14-5.37-4.38-.85-2.24-.55-4.93.89-6.81 1.44-1.88 3.86-2.91 6.22-2.58v4.02c-1.31-.22-2.75.14-3.64 1.13-.89.99-1.07 2.49-.46 3.65.61 1.16 2.01 1.95 3.31 1.74 1.3-.21 2.29-1.4 2.29-2.72.01-2.91.01-5.83.01-8.74-.01-2.74-.01-5.49-.01-8.23z"/></svg>
+        </div>
+    </div>
+</div>
+
+<div class="main-content" id="main-content">
+
+  <!-- ═══ TOP CHROME — always on top of every panel/modal ═══ -->
+  <div id="top-chrome">
+    <div class="main-header">
+        <button class="hamburger" id="hamburger-btn">☰</button>
+        <button class="refresh-btn" id="refresh-btn" title="Refresh" onclick="location.reload()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+          </svg>
+        </button>
+        <div class="brand"><span class="ceo">CEO</span><span class="skit">Skit</span></div>
+        <div id="acct-balance-display" style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
+            <div id="acct-balance-label" style="font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--accent);">Connecting…</div>
+            <div id="acct-balance-val" style="font-size:13px;font-weight:900;color:var(--text-main);letter-spacing:.5px;">—</div>
+        </div>
+    </div>
+
+    <div class="icon-toolbar">
+        <div class="tool-btn" id="toggle-chart" style="background:linear-gradient(135deg,#1565c0,#1976d2);color:white;border-color:#1565c0;">📊 <span id="chart-text">Chart</span></div>
+        <div class="toolbar-sep"></div>
+        <div class="tool-btn" id="btn-smart" onclick="openSmartAnalysis()" style="background:linear-gradient(135deg,#00c853,#00897b);color:white;border-color:#00c853;box-shadow:0 2px 10px rgba(0,200,83,.3);">🧠 Smart Analysis</div>
+        <div class="toolbar-sep"></div>
+        <div class="tool-btn" id="btn-engine" onclick="openEngine()" style="background:linear-gradient(135deg,#7c4dff,#651fff);color:white;border-color:#7c4dff;">🚀 Signal Engine</div>
+        <div class="toolbar-sep"></div>
+        <div id="btn-contracts" class="tool-btn" onclick="toggleContracts(event)" style="background:linear-gradient(135deg,#6a1b9a,#8e24aa);color:white;border-color:#6a1b9a;">🎲 Contracts ▾</div>
+        <div class="tool-btn" id="btn-tools" onclick="openTools()" style="background:linear-gradient(135deg,#37474f,#546e7a);color:white;border-color:#37474f;">🛠️ Tools</div>
+    </div>
+  </div><!-- /#top-chrome -->
+
+    <!-- CONTRACTS DROPDOWN — fixed position, set by JS to avoid toolbar clip -->
+    <!-- CONTRACTS DROPDOWN — placeholder tabs only -->
+    <div id="contracts-dropdown">
+        <div class="cd-hdr">Select Contract Type</div>
+        <div class="cd-grid">
+            <div class="cd-item" id="btn-rise_fall">
+                <span class="cd-name">Rise / Fall</span>
+            </div>
+            <div class="cd-item" id="btn-even_odd">
+                <span class="cd-name">Even / Odd</span>
+            </div>
+            <div class="cd-item" id="btn-over_under">
+                <span class="cd-name">Over / Under</span>
+            </div>
+            <div class="cd-item" id="btn-differs">
+                <span class="cd-name">Differs</span>
+            </div>
+        </div>
+    </div><!-- /contracts-dropdown -->
+
+    <!-- Hidden elements kept for JS compatibility -->
+    <select id="market-select" style="display:none;"></select>
+    <div id="digit-panel" style="display:none;"></div>
+    <div id="digit-cursor" style="display:none;"></div>
+    <div id="barrier-panel" style="display:none;"></div>
+    <div id="rolling-window" style="display:none;"></div>
+    <div id="stat-left" style="display:none;"></div>
+    <div id="stat-right" style="display:none;"></div>
+    <div id="live-price" style="display:none;"></div>
+    <div id="analysis-tools" style="display:none;"></div>
+    <div id="contract-nav" style="display:none;"></div>
+    <div id="shield-title" style="display:none;"></div>
+
+    <!-- CEOSKIT LOGO HOME SCREEN -->
+    <main id="home-screen" style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#050605;background-image:radial-gradient(circle at 2px 2px,#0a0a0a 1px,transparent 0);background-size:4px 4px;overflow:visible;position:relative;">
+
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;width:min(80vw,300px);">
+
+            <!-- Top arc -->
+            <div style="position:absolute;width:min(76vw,290px);height:min(76vw,290px);border-radius:50%;border:2px solid transparent;border-top:2px solid #c5a66d;top:-16px;left:50%;transform:translateX(-50%);-webkit-mask-image:linear-gradient(to right,transparent 10%,black 25%,black 75%,transparent 90%);mask-image:linear-gradient(to right,transparent 10%,black 25%,black 75%,transparent 90%);"></div>
+
+            <!-- Bottom arc -->
+            <div style="position:absolute;width:min(76vw,290px);height:min(76vw,290px);border-radius:50%;border:2px solid transparent;border-bottom:2px solid #c5a66d;bottom:-8px;left:50%;transform:translateX(-50%);-webkit-mask-image:linear-gradient(to right,transparent 30%,black 45%,black 55%,transparent 70%);mask-image:linear-gradient(to right,transparent 30%,black 45%,black 55%,transparent 70%);"></div>
+
+            <!-- Hexagon SVG icon -->
+            <div style="margin-bottom:-8px;filter:drop-shadow(0 8px 6px rgba(0,0,0,.9));">
+                <svg width="min(40vw,160px)" height="min(40vw,160px)" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="gold-metal" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#f5e0a3"/>
+                            <stop offset="50%" stop-color="#b8924a"/>
+                            <stop offset="100%" stop-color="#7a5d1f"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M100 20 L170 55 V145 L100 180 L30 145 V55 Z" fill="none" stroke="url(#gold-metal)" stroke-width="7"/>
+                    <path d="M100 30 L160 60 V140 L100 170 L40 140 V60 Z" fill="#080808" stroke="url(#gold-metal)" stroke-width="1.5"/>
+                    <rect x="30" y="65" width="4" height="70" fill="url(#gold-metal)"/>
+                    <rect x="166" y="65" width="4" height="70" fill="url(#gold-metal)"/>
+                    <circle cx="35" cy="58" r="4" fill="#a01a1a"/>
+                    <circle cx="165" cy="58" r="4" fill="#1e7a32"/>
+                    <circle cx="35" cy="142" r="4" fill="#1e7a32"/>
+                    <circle cx="165" cy="142" r="4" fill="#a01a1a"/>
+                    <text x="100" y="55" text-anchor="middle" fill="#d4af37" font-size="14" font-weight="900">CEO</text>
+                    <rect x="65" y="120" width="11" height="12" fill="#143d1a"/>
+                    <rect x="80" y="108" width="11" height="24" fill="#1a5c26"/>
+                    <rect x="95" y="92" width="11" height="40" fill="#248a39"/>
+                    <rect x="110" y="75" width="11" height="57" fill="#32c252"/>
+                    <rect x="125" y="85" width="11" height="47" fill="#b31d1d"/>
+                    <path d="M65 115 L140 60" stroke="url(#gold-metal)" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    <path d="M130 62 L145 57 L142 72" fill="url(#gold-metal)"/>
+                </svg>
+            </div>
+
+            <!-- Branding text -->
+            <div style="text-align:center;background:linear-gradient(to bottom,#fceabb 0%,#fccd4d 50%,#b8924a 51%,#8a6d29 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(1px 2px 1px rgba(0,0,0,.8));font-family:'Montserrat','Segoe UI',sans-serif;">
+                <div style="font-size:clamp(2.4rem,13vw,4.2rem);font-weight:900;letter-spacing:-1px;line-height:.9;">CEOSKIT</div>
+                <div style="display:flex;align-items:center;justify-content:center;font-size:clamp(.9rem,4.5vw,1.6rem);font-weight:800;letter-spacing:5px;margin-top:8px;">
+                    THE TRADER
+                    <svg style="height:clamp(18px,4.5vw,28px);margin-left:8px;" viewBox="0 0 20 40">
+                        <line x1="10" y1="5" x2="10" y2="35" stroke="url(#gold-metal)" stroke-width="3"/>
+                        <rect x="4" y="12" width="12" height="18" fill="none" stroke="url(#gold-metal)" stroke-width="3"/>
+                        <line x1="18" y1="18" x2="18" y2="30" stroke="url(#gold-metal)" stroke-width="3"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subtitle hint -->
+        <div style="position:absolute;bottom:16px;text-align:center;color:#3a3a2a;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">
+            Tap an icon above to begin
+        </div>
+
+        <!-- Glassmorphism feature showcase -->
+        <div id="feat-showcase" style="
+            display:none;
+            position:fixed;
+            bottom:80px;left:50%;
+            transform:translateX(-50%);
+            width:min(86vw,310px);
+            background:rgba(12,12,22,0.82);
+            border:1px solid rgba(255,255,255,0.14);
+            border-radius:18px;
+            padding:14px 16px 12px;
+            box-shadow:0 8px 40px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.07);
+            z-index:9999;
+        ">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div id="feat-icon" style="
+                    width:42px;height:42px;border-radius:12px;flex-shrink:0;
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:1.4rem;border:1px solid rgba(255,255,255,0.15);
+                "></div>
+                <div style="flex:1;min-width:0;">
+                    <div id="feat-name" style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.6px;text-transform:uppercase;margin-bottom:3px;font-family:'Inter','DM Sans',sans-serif;"></div>
+                    <div id="feat-desc" style="font-size:9.5px;color:rgba(255,255,255,0.62);font-weight:500;font-family:'Inter','DM Sans',sans-serif;line-height:1.45;"></div>
+                </div>
+            </div>
+            <div style="margin-top:11px;height:2px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;">
+                <div id="feat-bar" style="height:100%;width:0%;border-radius:2px;"></div>
+            </div>
+            <div id="feat-dots" style="display:flex;justify-content:center;gap:5px;margin-top:8px;"></div>
+        </div>
+
+    </main>
+</div>
+
+<!-- Risk Calculator Overlay -->
+<div id="risk-calc-overlay">
+    <div class="rc-header">
+        <div class="rc-icon">🧮</div>
+        <div>
+            <div class="rc-title">Risk Calculator</div>
+            <div class="rc-sub">By CEOskit — Protect Your Account</div>
+        </div>
+        <div class="rc-close" onclick="closeRiskCalc()">✕</div>
+    </div>
+    <div class="rc-body">
+
+        <!-- INPUTS -->
+        <div class="rc-section">
+            <div class="rc-section-title">💰 Your Account</div>
+
+            <div class="rc-field">
+                <label class="rc-label">Account Balance</label>
+                <span class="rc-hint">Total funds in your trading account</span>
+                <div class="rc-prefix-wrap">
+                    <span class="rc-prefix">$</span>
+                    <input class="rc-input" id="rc-balance" type="number" min="1" value="100" oninput="calcRisk()">
+                </div>
+            </div>
+
+            <div class="rc-field">
+                <label class="rc-label">Stake Per Trade</label>
+                <span class="rc-hint">Amount you plan to risk on one trade</span>
+                <div class="rc-prefix-wrap">
+                    <span class="rc-prefix">$</span>
+                    <input class="rc-input" id="rc-stake" type="number" min="0.35" step="0.01" value="1" oninput="calcRisk()">
+                </div>
+            </div>
+
+            <div class="rc-field">
+                <label class="rc-label">Stop After <span id="rc-stop-val">3</span> Losses in a Row</label>
+                <span class="rc-hint">Max consecutive losses before you stop trading</span>
+                <div class="rc-slider-row">
+                    <input class="rc-slider" id="rc-stop" type="range" min="1" max="10" value="3" oninput="document.getElementById('rc-stop-val').textContent=this.value;calcRisk()">
+                    <span class="rc-slider-val" id="rc-stop-disp">3</span>
+                </div>
+            </div>
+
+            <div class="rc-field">
+                <label class="rc-label">Martingale Multiplier: <span id="rc-mult-val">1×</span></label>
+                <span class="rc-hint">How much to multiply stake after a loss (1× = flat, no martingale)</span>
+                <div class="rc-slider-row">
+                    <input class="rc-slider" id="rc-mult" type="range" min="10" max="30" value="10" oninput="document.getElementById('rc-mult-val').textContent=(this.value/10).toFixed(1)+'×';calcRisk()">
+                    <span class="rc-slider-val" id="rc-mult-disp">1.0×</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- LIVE RESULTS -->
+        <div class="rc-section" id="rc-results-section">
+            <div class="rc-section-title">📊 Live Results</div>
+            <div class="rc-result-grid" id="rc-result-grid"></div>
+            <div id="rc-bar-section"></div>
+            <div id="rc-verdict"></div>
+        </div>
+
+        <!-- LOSS LADDER -->
+        <div class="rc-section">
+            <div class="rc-section-title">🪜 Loss Ladder — What You'd Lose Each Trade</div>
+            <div id="rc-ladder"></div>
+        </div>
+
+        <!-- RULES -->
+        <div class="rc-section">
+            <div class="rc-section-title">📋 CEOskit Money Rules</div>
+            <div class="rc-rule-row"><div class="rc-dot" style="background:var(--green)"></div><div>Never risk more than <strong>5%</strong> of your balance on a single trade</div></div>
+            <div class="rc-rule-row"><div class="rc-dot" style="background:var(--green)"></div><div>Stop after <strong>3 losses in a row</strong> — take a break and reset</div></div>
+            <div class="rc-rule-row"><div class="rc-dot" style="background:var(--orange)"></div><div>Martingale above <strong>2×</strong> is dangerous — use flat stakes until consistent</div></div>
+            <div class="rc-rule-row"><div class="rc-dot" style="background:var(--orange)"></div><div>Your max daily loss should not exceed <strong>20%</strong> of your balance</div></div>
+            <div class="rc-rule-row"><div class="rc-dot" style="background:var(--red)"></div><div>Never trade to <strong>recover losses</strong> — that is how accounts get wiped</div></div>
+        </div>
+
+    </div>
+</div>
+
+
+
+<!-- Signal Engine Overlay -->
+<div id="engine-overlay" style="
+    position:fixed;top:0;left:0;right:0;bottom:0;z-index:20000;display:none;
+    flex-direction:column;background:#000;
+">
+    <!-- Close bar — lives in the OUTER page, zero cross-origin issues -->
+    <div id="engine-close-bar" style="
+        display:flex;align-items:center;justify-content:space-between;
+        padding:6px 14px;background:#0a0a0d;border-bottom:1px solid #1e2235;
+        flex-shrink:0;min-height:40px;
+    ">
+        <div style="font-size:11px;font-weight:700;color:#5c6bc0;letter-spacing:1.5px;text-transform:uppercase;font-family:'DM Mono',monospace;">
+            🚀 Signal Engine
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:5px;font-size:8px;font-weight:700;
+                color:#00e676;background:rgba(0,230,118,.1);padding:3px 9px;
+                border-radius:10px;border:1px solid rgba(0,230,118,.35);font-family:'DM Mono',monospace;">
+                <span style="width:5px;height:5px;border-radius:50%;background:#00e676;display:inline-block;animation:blink 1.2s infinite;"></span>
+                LIVE
+            </div>
+            <button onclick="closeEngine()" style="
+                width:32px;height:32px;border-radius:50%;
+                background:rgba(244,63,94,.15);border:1px solid rgba(244,63,94,.5);
+                color:#F43F5E;font-size:16px;font-weight:900;cursor:pointer;
+                display:flex;align-items:center;justify-content:center;
+                -webkit-tap-highlight-color:transparent;
+                transition:background .2s;padding:0;line-height:1;
+            " title="Close Signal Engine">✕</button>
+        </div>
+    </div>
+    <!-- Engine iframe — full remaining height -->
+    <iframe
+        id="engine-iframe"
+        src=""
+        style="flex:1;width:100%;border:none;background:#000;"
+        allow="autoplay"
+    ></iframe>
+    <!-- Loading state -->
+    <div id="engine-loading" style="
+        position:absolute;inset:40px 0 0 0;
+        display:flex;flex-direction:column;
+        align-items:center;justify-content:center;
+        background:#000;z-index:1;
+    ">
+        <div style="font-family:monospace;font-size:2rem;font-weight:900;color:#00ff41;
+            text-shadow:0 0 12px rgba(0,255,65,.5);letter-spacing:3px;margin-bottom:12px;">
+            🚀 Signal Engine
+        </div>
+        <div style="width:40px;height:40px;border:3px solid #222;border-top-color:#3f51b5;
+            border-radius:50%;animation:spin 0.75s linear infinite;"></div>
+        <div style="font-family:monospace;font-size:.7rem;color:rgba(0,255,65,.5);
+            letter-spacing:3px;margin-top:12px;text-transform:uppercase;">
+            Initialising…
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     ADMIN PANEL — Deriv API Configuration
+     Open via ⚙️ in the side menu. All values saved to localStorage.
+     ═══════════════════════════════════════════════════════════════ -->
+
+
+<div id="admin-overlay">
+  <div class="adm-hdr">
+    <div class="adm-icon">⚙️</div>
+    <div class="adm-title">API Admin Panel</div>
+    <div class="adm-close" onclick="closeAdminPanel()">✕</div>
+  </div>
+  <div class="adm-body">
+
+    <div id="adm-status" class="adm-status"></div>
+
+    <!-- INFO BOX -->
+    <div class="adm-info-box">
+      <strong>Quick setup with PAT token:</strong><br>
+      1. Paste your <strong>App ID</strong> + <strong>Auth Token</strong> below<br>
+      2. Tap <strong>💾 Save & Apply</strong> — app boots instantly, no OAuth needed<br>
+      3. Tap <strong>📋 Fetch Accounts</strong> to load your account<br><br>
+      <strong>OAuth2 setup:</strong> Set <em>OAuth Client ID</em> from developers.deriv.com for full login flow.
+    </div>
+
+    <!-- SECTION 1: App Registration -->
+    <div class="adm-section">
+      <div class="adm-section-title">🏗️ App Registration</div>
+
+      <div class="adm-field">
+        <div class="adm-label">
+          App ID
+          <span id="adm-badge-app_id" class="adm-badge unset">not set</span>
+        </div>
+        <div class="adm-hint">Must be a <strong>numeric ID</strong> from <a href="https://api.deriv.com/app-registration" target="_blank" style="color:var(--accent)">api.deriv.com</a> for WebSocket (e.g. 12345). New platform IDs from developers.deriv.com are for REST API only.</div>
+        <input class="adm-input" id="adm-app_id" placeholder="e.g. 339uDFslsPc2j0sH6Uup1" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="adm-field">
+        <div class="adm-label">
+          OAuth Client ID <em style="font-size:8px;font-weight:600;color:var(--dark-gray)">(new Deriv platform)</em>
+          <span id="adm-badge-client_id" class="adm-badge unset">not set</span>
+        </div>
+        <div class="adm-hint">From developers.deriv.com — OAuth 2.0 app. When set, uses PKCE flow via auth.deriv.com instead of legacy popup.</div>
+        <input class="adm-input" id="adm-client_id" placeholder="e.g. 33b1MmudkRyweAxLjWvfr" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="adm-field">
+        <div class="adm-label">
+          Redirect URI
+          <span id="adm-badge-redirect_uri" class="adm-badge unset">auto</span>
+        </div>
+        <div class="adm-hint">Leave blank to auto-detect (current page URL). Must be whitelisted in your Deriv app dashboard.</div>
+        <input class="adm-input" id="adm-redirect_uri" placeholder="https://yourdomain.com/path" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <!-- SECTION 2: Direct Token Injection -->
+    <div class="adm-section">
+      <div class="adm-section-title">🔑 Direct Token Injection</div>
+      <div class="adm-hint" style="margin-bottom:10px;">Paste a PAT or JWT token directly to bypass the login flow. Useful for testing or CLI-style setups. Token type auto-detected.</div>
+
+      <div class="adm-field">
+        <div class="adm-label">
+          Auth Token (PAT or JWT)
+          <span id="adm-badge-token" class="adm-badge unset">not set</span>
+        </div>
+        <div class="adm-hint">Personal Access Token from Deriv dashboard, or JWT from OAuth flow. This will be used as Bearer token.</div>
+        <input class="adm-input" id="adm-token" placeholder="Paste token here…" type="password" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="adm-field">
+        <div class="adm-label">
+          Account ID (loginid)
+          <span id="adm-badge-acct" class="adm-badge unset">not set</span>
+        </div>
+        <div class="adm-hint">Account ID e.g. <strong>DOT90004580</strong> (new platform) or CR1234567 / VRTC1234567 (legacy). Required for OTP WebSocket auth.</div>
+        <input class="adm-input" id="adm-acct" placeholder="e.g. CR1234567" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <!-- SECTION 3: WebSocket Endpoints -->
+    <div class="adm-section">
+      <div class="adm-section-title">🌐 WebSocket Endpoints</div>
+
+      <div class="adm-field">
+        <div class="adm-label">Public WS (ticks, no auth)</div>
+        <div class="adm-hint">Used by Signal Engine iframe and Smart Analysis for market data.</div>
+        <div class="adm-ws-row">
+          <input class="adm-input" id="adm-ws_public" placeholder="wss://api.derivws.com/trading/v1/options/ws/public" autocomplete="off" spellcheck="false">
+          <button class="adm-test-btn" onclick="admTestWs('ws_public')">Test</button>
+          <div class="adm-test-dot" id="adm-dot-ws_public"></div>
+        </div>
+      </div>
+
+      <div class="adm-field">
+        <div class="adm-label">REST API Base</div>
+        <div class="adm-hint">Used for OTP endpoint. New Deriv API base URL.</div>
+        <input class="adm-input" id="adm-rest_base" placeholder="https://api.derivws.com" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <!-- SECTION 4: Affiliate / UTM -->
+    <div class="adm-section">
+      <div class="adm-section-title">📣 Affiliate & Campaign</div>
+      <div class="adm-field">
+        <div class="adm-label">Affiliate Token</div>
+        <input class="adm-input" id="adm-affiliate_token" placeholder="Your affiliate token" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="adm-field">
+        <div class="adm-label">UTM Campaign</div>
+        <input class="adm-input" id="adm-utm_campaign" placeholder="ceoskit" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <!-- Quick Actions row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <button class="adm-save" style="background:linear-gradient(135deg,#3b82f6,#2563eb);font-size:12px;padding:11px;" onclick="admFetchAccounts()">📋 Fetch Accounts</button>
+        <button class="adm-save" style="background:linear-gradient(135deg,#00c853,#00897b);font-size:12px;padding:11px;" onclick="admResetDemo()">🔄 Reset Demo Bal</button>
+    </div>
+    <button class="adm-save" onclick="admSave()">💾 Save & Apply</button>
+    <button class="adm-clear" onclick="admClear()">🗑️ Clear All Stored Config</button>
+
+    <!-- Current status readout -->
+    <div class="adm-section" style="margin-top:14px;">
+      <div class="adm-section-title">📡 Current Connection Status</div>
+      <div id="adm-conn-status" style="font-size:11px;line-height:1.9;color:var(--text-main);font-family:'DM Mono',monospace;"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TICK COUNTDOWN STRIP -->
+<!-- (injected by enhancements.js _startCnt) -->
+
+<!-- Scripts — load in order -->
+<script src="js/config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/enhancements.js"></script>
+
+</body>
+</html>
