@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DELTA PRIME | MULTI-SYMBOL TRADER</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --bg: #0f1923; 
+            --header: #1a2634; 
+            --border: #2a3748; 
+            --text: #f5f7fa; 
+            --up: #4bb43f; 
+            --down: #ec3f3f; 
+            --accent: #ff444f; 
+            --sub: #8593a5; 
+            --input-bg: #212e3e; 
+            --modal-bg: #1a2634; 
+            --overlay: rgba(0, 0, 0, 0.7); 
+            --panel-bg: #0f1923;
+            --buy-blue: #2a80f0;
+            --even-purple: #8e44ad;
+            --odd-orange: #d35400;
+        }
+
+        [data-theme="light"] { 
+            --bg: #e8ecf0; 
+            --header: #f4f6f8; 
+            --border: #cbd3d9; 
+            --text: #1a212b; 
+            --up: #3da633; 
+            --down: #df3333; 
+            --accent: #ff444f; 
+            --sub: #606d7c; 
+            --input-bg: #dde3eb; 
+            --modal-bg: #f4f6f8; 
+            --overlay: rgba(0, 0, 0, 0.4); 
+            --panel-bg: #f4f6f8;
+            --buy-blue: #1d70e8;
+            --even-purple: #7d3c98;
+            --odd-orange: #ba4a00;
+        }
+
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* --- Header --- */
+        #header { height: 46px; background: var(--header); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 6px; justify-content: space-between; z-index: 100; position: relative; gap: 4px; overflow: hidden; white-space: nowrap; }
+        #logo-text { font-weight: 800; font-size: 11px; letter-spacing: -0.5px; white-space: nowrap; flex-shrink: 0; }
+
+        #user-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        #wallet-balance { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 800; font-size: 10px; }
+
+        #account-type-select { background: rgba(75, 180, 63, 0.15); color: var(--up); border: none; border-radius: 4px; padding: 2px 4px; font-size: 9px; font-weight: 700; cursor: pointer; outline: none; }
+        #account-type-select option { background: var(--header); color: var(--text); }
+
+        .btn-header { background: none; border: 1px solid var(--border); border-radius: 4px; padding: 3px 5px; color: var(--text); font-size: 9px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        #btn-deposit { background: var(--up); border-color: var(--up); color: white; font-weight: 700; }
+
+        /* --- Secondary Toolbar --- */
+        .tool-bar { 
+            height: 36px; background: var(--bg); border-bottom: 1px solid var(--border); 
+            display: flex; align-items: center; padding: 0 10px; font-size: 11px; gap: 8px; 
+            z-index: 90; position: relative; overflow-x: auto; white-space: nowrap;
+        }
+        .view-btn {
+            background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+            border-radius: 4px; padding: 4px 10px; font-size: 10px; font-weight: 700; cursor: pointer;
+        }
+        .view-btn.active { background: var(--buy-blue); color: white; border-color: var(--buy-blue); }
+
+        /* --- Workspace --- */
+        #main-workspace { display: flex; height: calc(100dvh - 138px); width: 100vw; position: relative; overflow: hidden; }
+        #chart-container { width: 100%; height: 100%; position: relative; }
+
+        /* --- Attached Candle Timer Badge on Price Scale --- */
+        #candle-timer-badge {
+            position: absolute;
+            right: 55px;
+            z-index: 85;
+            font-weight: 700;
+            color: var(--buy-blue);
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            background: rgba(26, 38, 52, 0.75);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            font-variant-numeric: tabular-nums;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+            transition: top 0.05s ease-out;
+        }
+
+        /* --- Floating Bottom Left Controls --- */
+        #floating-bottom-left {
+            position: absolute; bottom: 12px; left: 12px; z-index: 80;
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(26, 38, 52, 0.85);
+            padding: 4px 8px; border-radius: 8px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .floating-chart-btn {
+            background: transparent; border: none; width: 30px; height: 30px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 15px; color: var(--text);
+            transition: opacity 0.2s;
+        }
+        .floating-chart-btn:hover { opacity: 0.8; }
+
+        /* --- Trade Execution Bar --- */
+        #trade-bar { 
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 56px; 
+            background: var(--header); border-top: 1px solid var(--border); 
+            display: flex; align-items: center; padding: 0 12px; padding-bottom: env(safe-area-inset-bottom, 0px); z-index: 120; gap: 10px; 
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+        }
+        .trade-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .trade-group.flex-grow { flex: 1; display: flex; gap: 6px; overflow-x: auto; white-space: nowrap; }
+        .trade-label { font-size: 10px; font-weight: 700; color: var(--sub); text-transform: uppercase; }
+
+        .btn-trade { border: none; border-radius: 4px; padding: 10px 12px; font-size: 10px; font-weight: 800; cursor: pointer; color: white; flex-shrink: 0; text-align: center; text-transform: uppercase; min-width: 70px; }
+        #btn-trade-buy { background: var(--up); }
+        #btn-trade-sell { background: var(--down); }
+        #btn-trade-even { background: var(--even-purple); }
+        #btn-trade-odd { background: var(--odd-orange); }
+        #btn-trade-over { background: #2980b9; }
+        #btn-trade-under { background: #16a085; }
+
+        /* --- Positions Panel --- */
+        #trade-environment-panel {
+            position: fixed; top: 82px; right: 0; bottom: 56px; width: 100%; max-width: 420px; 
+            background: var(--panel-bg); border-left: 1px solid var(--border);
+            display: flex; flex-direction: column; z-index: 150;
+            transform: translateX(0); transition: transform 0.2s ease-in-out;
+            box-shadow: -8px 0 30px rgba(0,0,0,0.5);
+        }
+        #trade-environment-panel.collapsed { transform: translateX(100%); pointer-events: none; }
+
+        .env-header {
+            height: 42px; background: var(--header); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 12px;
+            font-size: 11px; font-weight: 800; color: var(--sub); text-transform: uppercase;
+        }
+
+        .env-body { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: hidden; }
+
+        .mt5-summary {
+            background: var(--header); border: 1px solid var(--border); border-radius: 6px;
+            padding: 10px 12px; font-size: 11px; font-weight: 700; display: flex; flex-direction: column; gap: 5px;
+        }
+        .mt5-sum-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dotted rgba(128, 128, 128, 0.3); padding-bottom: 3px; }
+        .mt5-sum-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .mt5-sum-label { color: var(--text); }
+        .mt5-sum-val { font-variant-numeric: tabular-nums; font-weight: 800; }
+
+        .buy-text { color: var(--buy-blue); font-weight: 800; }
+        .sell-text { color: var(--down); font-weight: 800; }
+        .even-text { color: var(--even-purple); font-weight: 800; }
+        .odd-text { color: var(--odd-orange); font-weight: 800; }
+        .digit-text { color: #16a085; font-weight: 800; }
+        .profit-text { color: var(--up); font-weight: 800; }
+        .loss-text { color: var(--down); font-weight: 800; }
+
+        .bulk-actions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .btn-bulk { border: none; border-radius: 4px; padding: 8px 4px; font-size: 9px; font-weight: 800; cursor: pointer; color: white; text-align: center; text-transform: uppercase; }
+        .btn-close-winners { background: var(--up); }
+        .btn-close-losers { background: var(--down); }
+        .btn-close-all { background: var(--sub); }
+
+        .mt5-positions-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; border: 1px solid var(--border); border-radius: 6px; background: var(--header); }
+
+        .mt5-position-row { padding: 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: relative; }
+        .mt5-row-left { display: flex; flex-direction: column; gap: 4px; }
+        .mt5-symbol-line { font-size: 12px; font-weight: 800; display: flex; gap: 6px; align-items: center; }
+        .mt5-sym { color: var(--text); }
+        .mt5-price-line { font-size: 11px; color: var(--sub); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+        .mt5-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; margin-right: 26px; }
+        .mt5-time-line { font-size: 10px; color: var(--sub); font-weight: 600; font-variant-numeric: tabular-nums; }
+        .mt5-pnl-line { font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+        .mt5-row-close {
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+            background: rgba(236, 63, 63, 0.15); color: var(--down); border: 1px solid rgba(236, 63, 63, 0.3);
+            border-radius: 4px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 800; cursor: pointer;
+        }
+        .mt5-row-close:hover { background: var(--down); color: white; }
+
+        /* Chart Type Popup */
+        .dropdown-container { position: relative; display: inline-block; }
+        .chart-type-popup {
+            display: none; position: fixed; background: var(--modal-bg);
+            border: 1px solid var(--border); border-radius: 8px; padding: 12px; z-index: 9999;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 190px;
+        }
+        .chart-type-popup.open { display: block; }
+        .popup-title { font-size: 11px; font-weight: 800; color: var(--sub); margin-bottom: 8px; text-transform: uppercase; }
+        .popup-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+        .popup-item {
+            background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px;
+            padding: 10px 8px; font-size: 11px; font-weight: 700; color: var(--text); cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+            transition: all 0.15s;
+        }
+        .popup-item:hover { border-color: var(--buy-blue); background: rgba(42, 128, 240, 0.08); }
+        .popup-item.selected { border-color: var(--buy-blue); background: rgba(42, 128, 240, 0.15); color: var(--buy-blue); }
+        .popup-icon { font-size: 16px; }
+
+        /* Toast Notifications */
+        #toast-container { position: fixed; bottom: 70px; right: 12px; z-index: 300; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+        .toast { background: var(--header); border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; font-size: 11px; font-weight: 600; pointer-events: auto; }
+        .toast.success { border-left: 3px solid var(--up); }
+        .toast.error { border-left: 3px solid var(--down); }
+
+        /* Modals */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay); z-index: 200; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-content { background: var(--modal-bg); width: 90%; max-width: 320px; padding: 16px; border-radius: 8px; border: 1px solid var(--border); position: relative; }
+        .modal-header { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+        .modal-close { position: absolute; top: 10px; right: 10px; cursor: pointer; color: var(--sub); }
+        .input-wrapper { background: var(--input-bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px; margin-bottom: 8px; }
+        .input-field { background: none; border: none; color: var(--text); font-size: 12px; width: 100%; outline: none; }
+        .btn-modal { width: 100%; padding: 8px; border-radius: 4px; border: none; font-weight: 700; font-size: 11px; cursor: pointer; }
+
+        .barrier-digit-btn {
+            background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px;
+            padding: 10px; font-size: 13px; font-weight: 800; color: var(--text); cursor: pointer; text-align: center;
+            transition: all 0.15s;
+        }
+        .barrier-digit-btn:hover { border-color: var(--buy-blue); background: rgba(42, 128, 240, 0.1); }
+        .barrier-digit-btn.selected { border-color: var(--buy-blue); background: var(--buy-blue); color: white; }
+    </style>
+</head>
+<body data-theme="dark">
+
+<div id="toast-container"></div>
+
+<!-- Top Navigation -->
+<div id="header" class="no-scrollbar">
+    <div id="logo-text">DELTA<span style="color:var(--up)">PRIME</span></div>
+    <div id="user-controls">
+        <select id="account-type-select">
+            <option value="demo">Demo</option>
+            <option value="real">Real</option>
+            <option value="reset">🔄 Reset</option>
+        </select>
+        <span id="wallet-balance">$10,000.00</span>
+        <button id="btn-deposit" class="btn-header">Deposit</button>
+        <button id="btn-withdraw" class="btn-header">Withdraw</button>
+        <div id="theme-toggle" style="cursor:pointer; font-size:12px; padding:0 2px;" title="Toggle Theme">🌙</div>
+    </div>
+</div>
+
+<!-- Secondary Toolbar -->
+<div class="tool-bar no-scrollbar">
+    <select id="symbol-selector" style="background:var(--header); color:var(--text); border:1px solid var(--border); border-radius:4px; padding:2px 4px; font-size:10px; font-weight:700;">
+        <option value="10">Delta 10 (1s) Index</option>
+        <option value="20">Delta 20 (1s) Index</option>
+        <option value="30" selected>Delta 30 (1s) Index</option>
+        <option value="40">Delta 40 (1s) Index</option>
+        <option value="50">Delta 50 (1s) Index</option>
+    </select>
+    
+    <select id="tf-selector" style="background:var(--header); color:var(--text); border:1px solid var(--border); border-radius:4px; padding:2px 4px; font-size:10px; font-weight:700;">
+        <option value="60">1m</option>
+        <option value="120" selected>2m</option>
+        <option value="300">5m</option>
+    </select>
+
+    <button class="view-btn" id="btn-toggle-env">⚡ Positions</button>
+</div>
+
+<!-- Workspace -->
+<div id="main-workspace">
+    <div id="chart-container">
+        <!-- Attached Timer Badge on Price Scale -->
+        <div id="candle-timer-badge">⏳ <span id="candle-timer">00:00</span></div>
+
+        <!-- Floating Bottom Left Controls -->
+        <div id="floating-bottom-left">
+            <div class="dropdown-container">
+                <button class="floating-chart-btn" id="btn-chart-type-toggle" title="Chart Type">🕯️</button>
+                <div class="chart-type-popup" id="chart-type-menu">
+                    <div class="popup-title">Chart types</div>
+                    <div class="popup-grid">
+                        <div class="popup-item selected" data-type="candles">
+                            <span class="popup-icon">🕯️</span>
+                            <span>Candles</span>
+                        </div>
+                        <div class="popup-item" data-type="line">
+                            <span class="popup-icon">📈</span>
+                            <span>Line</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="width: 1px; height: 18px; background: var(--border);"></div>
+
+            <div class="trade-group" style="gap: 4px;">
+                <span class="trade-label" style="font-size: 9px;">Lot:</span>
+                <input type="number" id="trade-lots" value="0.01" min="0.01" step="0.01" style="width: 50px; background: rgba(33, 46, 62, 0.5); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 3px 5px; font-size: 11px; font-weight: 700; outline: none;">
+                
+                <span class="trade-label" style="font-size: 9px; margin-left:2px;">Ticks:</span>
+                <input type="number" id="trade-ticks" value="5" min="1" max="50" step="1" style="width: 38px; background: rgba(33, 46, 62, 0.5); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 3px 5px; font-size: 11px; font-weight: 700; outline: none;" title="Tick Duration for Digit Contracts">
+
+                <span class="trade-label" style="font-size: 9px; margin-left:2px;" title="Tick Interval (1-10)">Int:</span>
+                <input type="number" id="trade-tick-interval" value="1" min="1" max="10" step="1" style="width: 35px; background: rgba(33, 46, 62, 0.5); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 3px 5px; font-size: 11px; font-weight: 700; outline: none;" title="Take contract after every N ticks">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trade Execution Bar -->
+<div id="trade-bar" class="no-scrollbar">
+    <div class="trade-group flex-grow no-scrollbar">
+        <button id="btn-trade-buy" class="btn-trade">BUY (RISE)</button>
+        <button id="btn-trade-sell" class="btn-trade">SELL (FALL)</button>
+        <button id="btn-trade-even" class="btn-trade">EVEN</button>
+        <button id="btn-trade-odd" class="btn-trade">ODD</button>
+        <button id="btn-trade-over" class="btn-trade">OVER</button>
+        <button id="btn-trade-under" class="btn-trade">UNDER</button>
+    </div>
+</div>
+
+<!-- Positions Drawer -->
+<div id="trade-environment-panel" class="collapsed">
+    <div class="env-header">
+        <span>POSITIONS (<span id="open-trades-count">0</span>)</span>
+        <span style="cursor:pointer; font-size:18px;" onclick="toggleEnvPanel(false)">✕</span>
+    </div>
+    <div class="env-body">
+        <div class="mt5-summary">
+            <div class="mt5-sum-row">
+                <span class="mt5-sum-label">Profit:</span>
+                <span class="mt5-sum-val" id="mt5-profit">$0.00</span>
+            </div>
+            <div class="mt5-sum-row">
+                <span class="mt5-sum-label">Balance:</span>
+                <span class="mt5-sum-val" id="mt5-balance">$10,000.00</span>
+            </div>
+        </div>
+        <div class="bulk-actions-grid">
+            <button class="btn-bulk btn-close-winners" onclick="closeWinningTrades()">Close Winners</button>
+            <button class="btn-bulk btn-close-losers" onclick="closeLosingTrades()">Close Losers</button>
+            <button class="btn-bulk btn-close-all" onclick="closeAllActiveTrades()">Close All</button>
+        </div>
+        <div class="mt5-positions-list no-scrollbar" id="mt5-positions-list"></div>
+    </div>
+</div>
+
+<!-- Barrier Selection Modal for Over / Under -->
+<div id="modal-barrier" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('modal-barrier')">&times;</span>
+        <div class="modal-header" id="barrier-modal-title">Select Barrier</div>
+        <div style="font-size: 11px; color: var(--sub); margin-bottom: 10px;">Select digit prediction barrier (0 to 9):</div>
+        <div id="barrier-digits-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px;"></div>
+        <div id="barrier-info" style="font-size: 10px; color: var(--text); margin-bottom: 12px; font-weight: 600;"></div>
+        <button class="btn-modal" style="background:var(--buy-blue); color:white;" onclick="confirmBarrierTrade()">Next</button>
+    </div>
+</div>
+
+<!-- Digit Queue Confirmation Modal -->
+<div id="modal-queue-confirmation" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="cancelQueuedDigitTrades()">&times;</span>
+        <div class="modal-header">Queued Digit Positions</div>
+        <div style="font-size: 11px; color: var(--sub); margin-bottom: 12px;" id="queue-modal-text">You have queued digit positions ready to execute. Press OK to start or Cancel to discard.</div>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn-modal" style="background:var(--up); color:white; flex:1;" onclick="confirmQueuedDigitTrades()">OK (Start)</button>
+            <button class="btn-modal" style="background:var(--down); color:white; flex:1;" onclick="cancelQueuedDigitTrades()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Execution History Modal -->
+<div id="modal-history" class="modal-overlay">
+    <div class="modal-content" style="max-width: 380px;">
+        <span class="modal-close" onclick="closeModal('modal-history')">&times;</span>
+        <div class="modal-header">Queued Execution History</div>
+        <div style="font-size: 11px; color: var(--sub); margin-bottom: 8px;">Results of your executed queued positions:</div>
+        <div id="history-modal-summary"></div>
+        <div id="history-modal-list" class="no-scrollbar" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;"></div>
+        <button class="btn-modal" style="background:var(--buy-blue); color:white;" onclick="closeModal('modal-history')">Close</button>
+    </div>
+</div>
+
+<!-- Deposit Modal -->
+<div id="modal-deposit" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('modal-deposit')">&times;</span>
+        <div class="modal-header">Deposit Funds</div>
+        <div class="input-wrapper"><input type="text" class="input-field" id="deposit-account-target" readonly style="opacity:0.7;"></div>
+        <div class="input-wrapper"><input type="number" class="input-field" placeholder="Deposit Amount ($)" id="deposit-amount-input"></div>
+        <button class="btn-modal" style="background:var(--up); color:white;" onclick="confirmDeposit()">Confirm Deposit</button>
+    </div>
+</div>
+
+<!-- Withdraw Modal -->
+<div id="modal-withdraw" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('modal-withdraw')">&times;</span>
+        <div class="modal-header">Withdraw Funds</div>
+        <div class="input-wrapper"><input type="text" class="input-field" id="withdraw-account-target" readonly style="opacity:0.7;"></div>
+        <div class="input-wrapper"><input type="number" class="input-field" placeholder="Withdraw Amount ($)" id="withdraw-amount-input"></div>
+        <button class="btn-modal" style="background:var(--down); color:white;" onclick="confirmWithdraw()">Confirm Withdrawal</button>
+    </div>
+</div>
+
+<script>
+    const STORAGE_PREFIX = 'DELTA_PRIME_SYMBOL_';
+    const WALLET_KEY = 'DELTA_PRIME_CORE_WALLETS';
+    const POINT_SCALE_FACTOR = 10; 
+
+    const SUPPORTED_SYMBOLS = ['10', '20', '30', '40', '50'];
+    let currentSymbol = '30';
+    let masterTicks = []; 
+    let currentTF = 120;
+    let earliestTime = Math.floor(Date.now() / 1000);
+    let isLoadingMore = false;
+    let currentChartType = 'candles';
+
+    let latestPrices = { '10': 1000.00, '20': 1500.00, '30': 2500.00, '40': 3000.00, '50': 3500.00 };
+
+    let activeAccount = 'demo';
+    let demoBalance = 10000.00;
+    let realBalance = 0.00;
+
+    let activeTrades = [];
+    let tradeHistory = [];
+    let pendingDigitQueue = [];
+    let digitQueueTimer = null;
+    let nextTradeId = 11;
+
+    let watchingBatchIds = null;
+    let watchingBatchTrades = null;
+
+    let pendingDigitType = null; 
+    let selectedBarrier = 5;
+
+    const chartContainerEl = document.getElementById('chart-container');
+    const chart = LightweightCharts.createChart(chartContainerEl, {
+        layout: { background: { color: '#0f1923' }, textColor: '#8593a5', fontSize: 10 },
+        grid: { vertLines: { color: '#2a3748' }, horzLines: { color: '#2a3748' } },
+        priceScale: { borderColor: '#2a3748', autoScale: true },
+        timeScale: { borderColor: '#2a3748', timeVisible: true, barSpacing: 8 },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        localization: { priceFormatter: p => p.toFixed(4) }
+    });
+
+    let series = null;
+
+    function initSeries() {
+        if (series) chart.removeSeries(series);
+        if (currentChartType === 'candles') {
+            series = chart.addCandlestickSeries({
+                upColor: '#4bb43f', downColor: '#ec3f3f', borderVisible: false,
+                wickUpColor: '#4bb43f', wickDownColor: '#ec3f3f',
+            });
+        } else {
+            series = chart.addAreaSeries({
+                topColor: 'rgba(42, 128, 240, 0.4)',
+                bottomColor: 'rgba(42, 128, 240, 0.0)',
+                lineColor: '#2a80f0',
+                lineWidth: 2,
+            });
+        }
+    }
+
+    initSeries();
+
+    chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+        if (range && range.from < 15 && !isLoadingMore) {
+            isLoadingMore = true;
+            loadOlderHistory();
+            setTimeout(() => { isLoadingMore = false; }, 300);
+        }
+        updateTimerBadgePosition();
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+        if (chart && chartContainerEl) chart.resize(chartContainerEl.clientWidth, chartContainerEl.clientHeight);
+        updateTimerBadgePosition();
+    });
+    resizeObserver.observe(chartContainerEl);
+
+    function updateTimerBadgePosition() {
+        if (!series) return;
+        const currentPrice = latestPrices[currentSymbol];
+        const yCoord = series.priceToCoordinate(currentPrice);
+        const badge = document.getElementById('candle-timer-badge');
+        if (yCoord !== null && !isNaN(yCoord)) {
+            const chartHeight = chartContainerEl.clientHeight;
+            let topPos = yCoord + 4; 
+            if (topPos < 2) topPos = 2;
+            if (topPos > chartHeight - 24) topPos = chartHeight - 24;
+            badge.style.top = topPos + 'px';
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    const chartTypeToggleBtn = document.getElementById('btn-chart-type-toggle');
+    const chartTypeMenu = document.getElementById('chart-type-menu');
+
+    chartTypeToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = chartTypeMenu.classList.toggle('open');
+        if (isOpen) {
+            const rect = chartTypeToggleBtn.getBoundingClientRect();
+            chartTypeMenu.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+            chartTypeMenu.style.left = rect.left + 'px';
+        }
+    });
+
+    document.addEventListener('click', () => {
+        chartTypeMenu.classList.remove('open');
+    });
+
+    document.querySelectorAll('#chart-type-menu .popup-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const type = item.getAttribute('data-type');
+            setChartType(type);
+            chartTypeMenu.classList.remove('open');
+        });
+    });
+
+    function setChartType(type) {
+        currentChartType = type;
+        document.querySelectorAll('#chart-type-menu .popup-item').forEach(el => {
+            if (el.getAttribute('data-type') === type) el.classList.add('selected');
+            else el.classList.remove('selected');
+        });
+        
+        chartTypeToggleBtn.innerHTML = type === 'candles' ? '🕯️' : '📈';
+
+        initSeries();
+        render();
+        requestAnimationFrame(() => {
+            chart.priceScale('right').applyOptions({ autoScale: true });
+            chart.timeScale().fitContent();
+            updateTimerBadgePosition();
+        });
+        showToast(`Chart type changed to ${type}`, 'info');
+    }
+
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerText = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+    }
+
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        const newTheme = isDark ? 'light' : 'dark';
+        document.body.setAttribute('data-theme', newTheme);
+        document.getElementById('theme-toggle').innerText = isDark ? '☀️' : '🌙';
+
+        chart.applyOptions({
+            layout: { background: { color: isDark ? '#e8ecf0' : '#0f1923' }, textColor: isDark ? '#606d7c' : '#8593a5' },
+            grid: { vertLines: { color: isDark ? '#cbd3d9' : '#2a3748' }, horzLines: { color: isDark ? '#cbd3d9' : '#2a3748' } }
+        });
+    });
+
+    function toggleEnvPanel(forceOpen = null) {
+        const panel = document.getElementById('trade-environment-panel');
+        const btn = document.getElementById('btn-toggle-env');
+        if (forceOpen === true) panel.classList.remove('collapsed');
+        else if (forceOpen === false) panel.classList.add('collapsed');
+        else panel.classList.toggle('collapsed');
+        if (!panel.classList.contains('collapsed')) btn.classList.add('active'); else btn.classList.remove('active');
+    }
+    window.toggleEnvPanel = toggleEnvPanel;
+    document.getElementById('btn-toggle-env').addEventListener('click', () => toggleEnvPanel());
+
+    function getLastDigit(price) {
+        const str = price.toFixed(4);
+        return parseInt(str.charAt(str.length - 1));
+    }
+
+    function placeTrade(prediction, barrier = null) {
+        const currentBalance = activeAccount === 'demo' ? demoBalance : realBalance;
+        if (currentBalance <= 0) {
+            showToast(`Trade rejected: ${activeAccount.toUpperCase()} balance is $0.00 or insufficient.`, "error");
+            return;
+        }
+
+        const lots = parseFloat(document.getElementById('trade-lots').value);
+        if (isNaN(lots) || lots <= 0) {
+            showToast("Enter a valid Lot Size.", "error");
+            return;
+        }
+
+        const ticksCount = parseInt(document.getElementById('trade-ticks').value) || 5;
+        const tickInterval = parseInt(document.getElementById('trade-tick-interval').value) || 1;
+        const currentPrice = latestPrices[currentSymbol] || 1000;
+        const now = Math.floor(Date.now() / 1000);
+
+        const isDigit = ['EVEN', 'ODD', 'OVER', 'UNDER'].includes(prediction);
+
+        const trade = {
+            id: nextTradeId++,
+            symbolId: currentSymbol,
+            symbol: `Delta ${currentSymbol} Index`,
+            prediction: prediction,
+            lotSize: lots,
+            entryPrice: currentPrice,
+            entryDigit: getLastDigit(currentPrice),
+            barrier: barrier,
+            startTime: now,
+            status: 'active',
+            isDigitContract: isDigit,
+            tickDuration: isDigit ? ticksCount : 1,
+            tickInterval: Math.max(1, Math.min(10, tickInterval)),
+            ticksSinceLastEval: 0,
+            accumulatedPnl: 0,
+            resultsLog: []
+        };
+
+        if (isDigit) {
+            pendingDigitQueue.push(trade);
+
+            if (digitQueueTimer) {
+                clearTimeout(digitQueueTimer);
+            }
+
+            const count = pendingDigitQueue.length;
+            const modalTextEl = document.getElementById('queue-modal-text');
+            if (modalTextEl) {
+                modalTextEl.innerText = `You have ${count} queued digit position(s) (Interval: Every ${trade.tickInterval} tick${trade.tickInterval > 1 ? 's' : ''}) ready to execute. Press OK to start or Cancel to discard.`;
+            }
+
+            digitQueueTimer = setTimeout(() => {
+                if (pendingDigitQueue.length > 0) {
+                    openModal('modal-queue-confirmation');
+                }
+            }, 5000);
+
+            showToast(`Queued position (${count} in queue)`, "info");
+        } else {
+            activeTrades.push(trade);
+            toggleEnvPanel(true);
+            updateEnvironmentUI();
+            updateWalletDisplay();
+            save();
+            showToast(`${prediction} trade placed on Delta ${currentSymbol} (Position #${activeTrades.length})`, "success");
+        }
+    }
+
+    window.confirmQueuedDigitTrades = function() {
+        if (digitQueueTimer) {
+            clearTimeout(digitQueueTimer);
+            digitQueueTimer = null;
+        }
+        closeModal('modal-queue-confirmation');
+        if (pendingDigitQueue.length === 0) return;
+
+        const batch = [...pendingDigitQueue];
+        batch.forEach(trade => {
+            activeTrades.push(trade);
+        });
+
+        watchingBatchIds = batch.map(t => t.id);
+        watchingBatchTrades = [];
+
+        const count = pendingDigitQueue.length;
+        pendingDigitQueue = [];
+        toggleEnvPanel(true);
+        updateEnvironmentUI();
+        updateWalletDisplay();
+        save();
+        showToast(`Successfully started ${count} queued digit position(s)!`, "success");
+    };
+
+    window.cancelQueuedDigitTrades = function() {
+        if (digitQueueTimer) {
+            clearTimeout(digitQueueTimer);
+            digitQueueTimer = null;
+        }
+        closeModal('modal-queue-confirmation');
+        const count = pendingDigitQueue.length;
+        pendingDigitQueue = [];
+        showToast(`Discarded ${count} queued digit position(s).`, "info");
+    };
+
+    document.getElementById('btn-trade-buy').addEventListener('click', () => placeTrade('BUY'));
+    document.getElementById('btn-trade-sell').addEventListener('click', () => placeTrade('SELL'));
+    document.getElementById('btn-trade-even').addEventListener('click', () => placeTrade('EVEN'));
+    document.getElementById('btn-trade-odd').addEventListener('click', () => placeTrade('ODD'));
+    
+    document.getElementById('btn-trade-over').addEventListener('click', () => openBarrierModal('OVER'));
+    document.getElementById('btn-trade-under').addEventListener('click', () => openBarrierModal('UNDER'));
+
+    function openBarrierModal(type) {
+        pendingDigitType = type;
+        selectedBarrier = 5;
+        document.getElementById('barrier-modal-title').innerText = `${type} Barrier Selection`;
+        buildBarrierGrid();
+        openModal('modal-barrier');
+    }
+
+    function buildBarrierGrid() {
+        const grid = document.getElementById('barrier-digits-grid');
+        grid.innerHTML = '';
+        for (let i = 0; i <= 9; i++) {
+            const btn = document.createElement('div');
+            btn.className = `barrier-digit-btn ${i === selectedBarrier ? 'selected' : ''}`;
+            btn.innerText = i;
+            btn.onclick = () => {
+                selectedBarrier = i;
+                buildBarrierGrid();
+            };
+            grid.appendChild(btn);
+        }
+        updateBarrierInfo();
+    }
+
+    function updateBarrierInfo() {
+        const info = document.getElementById('barrier-info');
+        let winCount = pendingDigitType === 'OVER' ? (9 - selectedBarrier) : selectedBarrier;
+        if (winCount < 0) winCount = 0;
+        const prob = Math.round((winCount / 10) * 100);
+        const payoutMultiplier = (10 / (winCount === 0 ? 1 : winCount)).toFixed(2);
+        info.innerText = `Prediction: ${pendingDigitType} ${selectedBarrier} | Win Probability: ${prob}% | Payout: ~${payoutMultiplier}x`;
+    }
+
+    window.confirmBarrierTrade = function() {
+        if (!pendingDigitType) return;
+        closeModal('modal-barrier');
+        placeTrade(pendingDigitType, selectedBarrier);
+        pendingDigitType = null;
+    };
+
+    function processIncomingTickForTrades(newTickPrice) {
+        const digit = getLastDigit(newTickPrice);
+        const stakeUnit = 100;
+
+        const activeDigitTrades = activeTrades.filter(t => t.status === 'active' && t.isDigitContract);
+        if (activeDigitTrades.length > 0) {
+            const trade = activeDigitTrades[0];
+            
+            trade.ticksSinceLastEval = (trade.ticksSinceLastEval || 0) + 1;
+            
+            if (trade.ticksSinceLastEval >= trade.tickInterval) {
+                trade.ticksSinceLastEval = 0;
+
+                let won = false;
+                if (trade.prediction === 'EVEN') {
+                    won = (digit % 2 === 0);
+                } else if (trade.prediction === 'ODD') {
+                    won = (digit % 2 !== 0);
+                } else if (trade.prediction === 'OVER') {
+                    won = (digit > trade.barrier);
+                } else if (trade.prediction === 'UNDER') {
+                    won = (digit < trade.barrier);
+                }
+
+                const stake = trade.lotSize * stakeUnit;
+                let payoutMultiplier = 0.95;
+                if (trade.prediction === 'OVER' || trade.prediction === 'UNDER') {
+                    const winCount = trade.prediction === 'OVER' ? (9 - trade.barrier) : trade.barrier;
+                    payoutMultiplier = 10 / Math.max(1, winCount);
+                }
+
+                const tickPnl = won ? (stake * payoutMultiplier) : (-stake);
+                trade.accumulatedPnl += tickPnl;
+                trade.resultsLog.push({ digit, won, pnl: tickPnl });
+
+                trade.status = 'closed';
+                const finalPnl = trade.accumulatedPnl;
+                if (activeAccount === 'demo') demoBalance += finalPnl;
+                else realBalance += finalPnl;
+
+                tradeHistory.unshift(trade);
+
+                if (watchingBatchIds && watchingBatchIds.includes(trade.id)) {
+                    watchingBatchTrades.push(trade);
+                    if (watchingBatchTrades.length === watchingBatchIds.length) {
+                        const completedBatch = [...watchingBatchTrades];
+                        watchingBatchIds = null;
+                        watchingBatchTrades = null;
+                        showExecutionHistoryPopup(completedBatch);
+                    }
+                }
+
+                showToast(`Contract #${trade.id} (${trade.prediction}) resolved (Digit: ${digit}). Net: ${finalPnl >= 0 ? '+' : ''}$${finalPnl.toFixed(2)}`, finalPnl >= 0 ? 'success' : 'error');
+            }
+        }
+
+        activeTrades = activeTrades.filter(t => t.status === 'active');
+    }
+
+    function showExecutionHistoryPopup(trades) {
+        const listEl = document.getElementById('history-modal-list');
+        const summaryContainer = document.getElementById('history-modal-summary');
+        listEl.innerHTML = '';
+        
+        let totalBatchPnl = 0;
+        trades.forEach(t => {
+            totalBatchPnl += t.accumulatedPnl;
+            const pnlClass = t.accumulatedPnl >= 0 ? 'profit-text' : 'loss-text';
+            const d = new Date(t.startTime * 1000);
+            const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+            const digitHit = t.resultsLog[0] ? t.resultsLog[0].digit : '-';
+
+            const row = document.createElement('div');
+            row.style.background = 'var(--input-bg)';
+            row.style.padding = '8px';
+            row.style.borderRadius = '6px';
+            row.style.display = 'flex';
+            row.style.justifyContent = 'space-between';
+            row.style.alignItems = 'center';
+            row.style.fontSize = '11px';
+            row.innerHTML = `
+                <div>
+                    <strong>#${t.id} ${t.prediction} ${t.barrier !== null ? t.barrier : ''}</strong><br>
+                    <span style="color:var(--sub);">Time: ${timeStr} | Interval: ${t.tickInterval}t | Digit: ${digitHit} | Lot: ${t.lotSize.toFixed(2)}</span>
+                </div>
+                <div class="mt5-pnl-line ${pnlClass}">${t.accumulatedPnl >= 0 ? '+' : ''}${t.accumulatedPnl.toFixed(2)}</div>
+            `;
+            listEl.appendChild(row);
+        });
+
+        if (summaryContainer) {
+            const sumClass = totalBatchPnl >= 0 ? 'profit-text' : 'loss-text';
+            summaryContainer.innerHTML = `
+                <div style="background: var(--header); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: 800;">
+                    <span>Total Batch Net PnL:</span>
+                    <span class="${sumClass}">${totalBatchPnl >= 0 ? '+' : ''}$${totalBatchPnl.toFixed(2)}</span>
+                </div>
+            `;
+        }
+
+        openModal('modal-history');
+    }
+
+    function calculateLotMetrics(trade, currentPrice) {
+        if (trade.isDigitContract) {
+            return { pnl: trade.accumulatedPnl, pointDiff: 0, resolved: false, won: null };
+        } else {
+            let pointDiff = (trade.prediction === 'BUY') ? (currentPrice - trade.entryPrice) : (trade.entryPrice - currentPrice);
+            const pnl = pointDiff * trade.lotSize * POINT_SCALE_FACTOR;
+            return { pnl, pointDiff, resolved: false };
+        }
+    }
+
+    function getTradeLivePrice(trade) {
+        return latestPrices[trade.symbolId] || trade.entryPrice;
+    }
+
+    function updateAccountOptions() {
+        const selectEl = document.getElementById('account-type-select');
+        selectEl.innerHTML = `
+            <option value="demo">Demo</option>
+            <option value="real">Real</option>
+            ${activeAccount === 'demo' ? '<option value="reset">🔄 Reset</option>' : ''}
+        `;
+        selectEl.value = activeAccount;
+    }
+
+    function updateWalletDisplay() {
+        const baseBal = activeAccount === 'demo' ? demoBalance : realBalance;
+        const activeList = activeTrades.filter(t => t.status === 'active');
+        let aggregatePnl = 0;
+        activeList.forEach(t => { aggregatePnl += calculateLotMetrics(t, getTradeLivePrice(t)).pnl; });
+        const liveEquity = baseBal + aggregatePnl;
+        document.getElementById('wallet-balance').innerText = '$' + liveEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function resetDemoAccount() {
+        demoBalance = 10000.00;
+        activeTrades = activeTrades.filter(t => t.status !== 'active');
+        tradeHistory = [];
+        pendingDigitQueue = [];
+        if (digitQueueTimer) clearTimeout(digitQueueTimer);
+        digitQueueTimer = null;
+        activeAccount = 'demo';
+        updateAccountOptions();
+        updateWalletDisplay();
+        updateEnvironmentUI();
+        save();
+        showToast("Demo account reset to $10,000.00", "success");
+    }
+    window.resetDemoAccount = resetDemoAccount;
+
+    function updateEnvironmentUI() {
+        const listEl = document.getElementById('mt5-positions-list');
+        const mt5ProfitEl = document.getElementById('mt5-profit');
+        const mt5BalanceEl = document.getElementById('mt5-balance');
+        const countEl = document.getElementById('open-trades-count');
+        const toggleBtn = document.getElementById('btn-toggle-env');
+
+        const activeList = activeTrades.filter(t => t.status === 'active');
+        countEl.innerText = activeList.length;
+        toggleBtn.innerText = activeList.length > 0 ? `⚡ Positions (${activeList.length})` : `⚡ Positions`;
+
+        let aggregatePnl = 0;
+        activeList.forEach(t => { aggregatePnl += calculateLotMetrics(t, getTradeLivePrice(t)).pnl; });
+
+        const baseBal = activeAccount === 'demo' ? demoBalance : realBalance;
+        mt5ProfitEl.className = `mt5-sum-val ${aggregatePnl >= 0 ? 'profit-text' : 'loss-text'}`;
+        mt5ProfitEl.innerText = `${aggregatePnl >= 0 ? '+' : ''}$${aggregatePnl.toFixed(2)}`;
+        mt5BalanceEl.innerText = '$' + (baseBal + aggregatePnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        if (activeList.length === 0) {
+            listEl.innerHTML = '<div style="text-align:center; padding:40px 10px; color:var(--sub); font-size:12px; font-weight:600;">No open positions</div>';
+            return;
+        }
+
+        listEl.innerHTML = '';
+        activeList.forEach((t, idx) => {
+            const currentLivePrice = getTradeLivePrice(t);
+            const m = calculateLotMetrics(t, currentLivePrice);
+            const pnlClass = m.pnl >= 0 ? 'profit-text' : 'loss-text';
+            const d = new Date(t.startTime * 1000);
+            const timeStr = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+
+            let labelText = '';
+            let labelClass = '';
+            if (t.isDigitContract) {
+                const queuePositionText = idx === 0 ? '▶ Processing Next' : `⏳ Queue #${idx + 1}`;
+                labelText = `${t.prediction}${t.barrier !== null ? ' ' + t.barrier : ''} [Int: ${t.tickInterval}t] [${queuePositionText}] (${t.lotSize.toFixed(2)})`;
+                labelClass = t.prediction === 'EVEN' ? 'even-text' : (t.prediction === 'ODD' ? 'odd-text' : 'digit-text');
+            } else {
+                const isBuy = t.prediction === 'BUY';
+                labelText = `${t.prediction.toLowerCase()} ${t.lotSize.toFixed(2)}`;
+                labelClass = isBuy ? 'buy-text' : 'sell-text';
+            }
+
+            const row = document.createElement('div');
+            row.className = 'mt5-position-row';
+            row.innerHTML = `
+                <div class="mt5-row-left">
+                    <div class="mt5-symbol-line">
+                        <span class="mt5-sym">${t.symbol.replace(/\s+/g, '')}#,</span>
+                        <span class="${labelClass}">${labelText}</span>
+                    </div>
+                    <div class="mt5-price-line">Current Digit: ${getLastDigit(currentLivePrice)} | Tick Interval: ${t.tickInterval}</div>
+                </div>
+                <div class="mt5-row-right">
+                    <div class="mt5-time-line">${timeStr}</div>
+                    <div class="mt5-pnl-line ${pnlClass}">${m.pnl >= 0 ? '+' : ''}${m.pnl.toFixed(2)}</div>
+                </div>
+                <button class="mt5-row-close" onclick="closeTradeEarly(${t.id})">✕</button>
+            `;
+            listEl.appendChild(row);
+        });
+    }
+
+    function closeTradeEarly(tradeId) {
+        const idx = activeTrades.findIndex(t => t.id === tradeId && t.status === 'active');
+        if (idx === -1) return;
+        const trade = activeTrades[idx];
+        const metrics = calculateLotMetrics(trade, getTradeLivePrice(trade));
+        if (activeAccount === 'demo') demoBalance += metrics.pnl; else realBalance += metrics.pnl;
+        trade.status = 'closed';
+        tradeHistory.unshift(trade);
+        showToast(`Closed #${trade.id} (${metrics.pnl >= 0 ? '+' : ''}$${metrics.pnl.toFixed(2)})`, metrics.pnl >= 0 ? 'success' : 'error');
+        activeTrades = activeTrades.filter(t => t.id !== tradeId);
+        updateEnvironmentUI();
+        updateWalletDisplay();
+        save();
+    }
+    window.closeTradeEarly = closeTradeEarly;
+
+    function closeWinningTrades() {
+        let closedPnl = 0, count = 0;
+        activeTrades.forEach(trade => {
+            if (trade.status === 'active') {
+                const metrics = calculateLotMetrics(trade, getTradeLivePrice(trade));
+                if (metrics.pnl > 0) { 
+                    closedPnl += metrics.pnl; 
+                    trade.status = 'closed'; 
+                    tradeHistory.unshift(trade);
+                    count++; 
+                }
+            }
+        });
+        if (count === 0) { showToast("No winning trades to close.", "info"); return; }
+        if (activeAccount === 'demo') demoBalance += closedPnl; else realBalance += closedPnl;
+        activeTrades = activeTrades.filter(t => t.status === 'active');
+        showToast(`Closed ${count} winning trades (+$${closedPnl.toFixed(2)})`, 'success');
+        updateEnvironmentUI();
+        updateWalletDisplay();
+        save();
+    }
+    window.closeWinningTrades = closeWinningTrades;
+
+    function closeLosingTrades() {
+        let closedPnl = 0, count = 0;
+        activeTrades.forEach(trade => {
+            if (trade.status === 'active') {
+                const metrics = calculateLotMetrics(trade, getTradeLivePrice(trade));
+                if (metrics.pnl < 0) { 
+                    closedPnl += metrics.pnl; 
+                    trade.status = 'closed'; 
+                    tradeHistory.unshift(trade);
+                    count++; 
+                }
+            }
+        });
+        if (count === 0) { showToast("No losing trades to close.", "info"); return; }
+        if (activeAccount === 'demo') demoBalance += closedPnl; else realBalance += closedPnl;
+        activeTrades = activeTrades.filter(t => t.status === 'active');
+        showToast(`Closed ${count} losing trades (-$${Math.abs(closedPnl).toFixed(2)})`, 'error');
+        updateEnvironmentUI();
+        updateWalletDisplay();
+        save();
+    }
+    window.closeLosingTrades = closeLosingTrades;
+
+    function closeAllActiveTrades() {
+        if (activeTrades.length === 0) return;
+        let grandPnl = 0;
+        activeTrades.forEach(trade => {
+            if (trade.status === 'active') {
+                grandPnl += calculateLotMetrics(trade, getTradeLivePrice(trade)).pnl;
+                trade.status = 'closed';
+                tradeHistory.unshift(trade);
+            }
+        });
+        if (activeAccount === 'demo') demoBalance += grandPnl; else realBalance += grandPnl;
+        showToast(`Closed ALL trades (${grandPnl >= 0 ? '+' : ''}$${grandPnl.toFixed(2)})`, grandPnl >= 0 ? 'success' : 'error');
+        activeTrades = [];
+        updateEnvironmentUI();
+        updateWalletDisplay();
+        save();
+    }
+    window.closeAllActiveTrades = closeAllActiveTrades;
+
+    function loadWallet() {
+        const saved = localStorage.getItem(WALLET_KEY);
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                if (data.activeAccount) activeAccount = data.activeAccount;
+                if (typeof data.demoBalance === 'number') demoBalance = data.demoBalance;
+                if (typeof data.realBalance === 'number') realBalance = data.realBalance;
+            } catch(e) {}
+        }
+    }
+
+    function getMove(symbolKey) {
+        const volFactor = parseInt(symbolKey) / 30;
+        const rand = Math.random();
+        let m = rand > 0.9 ? 1.5 : (rand > 0.1 ? 0.3 : 0.05);
+        return ((Math.random() > 0.5 ? 1 : -1) * m + (Math.random() - 0.5) * 0.02) * volFactor;
+    }
+
+    function render() {
+        const candles = [];
+        let curr = null;
+        masterTicks.forEach(t => {
+            const b = Math.floor(t.time / currentTF) * currentTF;
+            if (!curr || curr.time !== b) {
+                if (curr) candles.push(curr);
+                curr = { time: b, open: t.price, high: t.price, low: t.price, close: t.price };
+            } else {
+                curr.high = Math.max(curr.high, t.price);
+                curr.low = Math.min(curr.low, t.price);
+                curr.close = t.price;
+            }
+        });
+        if (curr) candles.push(curr);
+
+        if (currentChartType === 'candles') {
+            series.setData(candles);
+        } else {
+            const areaData = candles.map(c => ({ time: c.time, value: c.close }));
+            series.setData(areaData);
+        }
+        updateTimerBadgePosition();
+    }
+
+    function generateHistory(amount, fromPrice) {
+        let p = fromPrice;
+        let batch = [];
+        for (let i = 0; i < amount; i++) {
+            earliestTime--;
+            p -= getMove(currentSymbol);
+            batch.unshift({ time: earliestTime, price: p });
+        }
+        masterTicks = [...batch, ...masterTicks];
+        latestPrices[currentSymbol] = masterTicks[masterTicks.length - 1].price;
+        render();
+    }
+
+    function loadOlderHistory() {
+        if (masterTicks.length === 0) return;
+        let p = masterTicks[0].price;
+        let batch = [];
+        for (let i = 0; i < 1500; i++) {
+            earliestTime--;
+            p -= getMove(currentSymbol);
+            batch.unshift({ time: earliestTime, price: p });
+        }
+        masterTicks = [...batch, ...masterTicks];
+        render();
+        save();
+    }
+
+    function startTicker() {
+        setInterval(() => {
+            const now = Math.floor(Date.now() / 1000);
+            SUPPORTED_SYMBOLS.forEach(sym => {
+                const prevPrice = latestPrices[sym] || (1000 + parseInt(sym) * 50);
+                const nextPrice = prevPrice + getMove(sym);
+                latestPrices[sym] = nextPrice;
+
+                if (sym === currentSymbol) {
+                    masterTicks.push({ time: now, price: nextPrice });
+                    if(masterTicks.length > 15000) masterTicks.shift();
+
+                    processIncomingTickForTrades(nextPrice);
+
+                    const b = Math.floor(now / currentTF) * currentTF;
+                    const tks = masterTicks.filter(t => t.time >= b);
+
+                    if (tks.length > 0) {
+                        const o = tks[0].price;
+                        const h = Math.max(...tks.map(t => t.price));
+                        const l = Math.min(...tks.map(t => t.price));
+                        const c = tks[tks.length - 1].price;
+
+                        if (currentChartType === 'candles') {
+                            series.update({ time: b, open: o, high: h, low: l, close: c });
+                        } else {
+                            series.update({ time: b, value: c });
+                        }
+                    }
+                }
+            });
+
+            updateEnvironmentUI();
+            updateWalletDisplay();
+            updateTimerBadgePosition();
+
+            const rem = currentTF - (now % currentTF);
+            document.getElementById('candle-timer').innerText = `${String(Math.floor(rem / 60)).padStart(2, '0')}:${String(rem % 60).padStart(2, '0')}`;
+        }, 1000);
+    }
+
+    function save() {
+        try { localStorage.setItem(STORAGE_PREFIX + currentSymbol, JSON.stringify(masterTicks.slice(-4000))); } catch(e){}
+        try { localStorage.setItem(WALLET_KEY, JSON.stringify({ activeAccount, demoBalance, realBalance })); } catch(e){}
+    }
+
+    function loadSymbol(sym) {
+        currentSymbol = sym;
+        const s = localStorage.getItem(STORAGE_PREFIX + currentSymbol);
+        let loaded = false;
+
+        if (s) {
+            try { 
+                const parsed = JSON.parse(s); 
+                if (parsed && parsed.length > 0) {
+                    const now = Math.floor(Date.now() / 1000);
+                    if (now - parsed[parsed.length - 1].time < 3600) {
+                        masterTicks = parsed;
+                        let lastPrice = masterTicks[masterTicks.length - 1].price;
+                        while (masterTicks[masterTicks.length - 1].time < now) {
+                            lastPrice += getMove(currentSymbol);
+                            masterTicks.push({ time: masterTicks[masterTicks.length - 1].time + 1, price: lastPrice });
+                        }
+                        latestPrices[currentSymbol] = lastPrice;
+                        earliestTime = masterTicks[0].time;
+                        loaded = true;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        if (!loaded) {
+            masterTicks = [];
+            earliestTime = Math.floor(Date.now() / 1000);
+            generateHistory(2000, 1000.00 + parseInt(currentSymbol) * 50);
+        } else {
+            render();
+        }
+
+        requestAnimationFrame(() => {
+            chart.priceScale('right').applyOptions({ autoScale: true });
+            chart.timeScale().fitContent();
+            updateTimerBadgePosition();
+        });
+    }
+
+    window.openModal = id => document.getElementById(id).classList.add('open');
+    window.closeModal = id => document.getElementById(id).classList.remove('open');
+    
+    window.confirmDeposit = () => {
+        const amt = parseFloat(document.getElementById('deposit-amount-input').value);
+        if (amt > 0) {
+            if (activeAccount === 'demo') demoBalance += amt; else realBalance += amt;
+            updateWalletDisplay(); closeModal('modal-deposit'); 
+            document.getElementById('deposit-amount-input').value = '';
+            showToast(`Deposited $${amt.toFixed(2)}`, 'success');
+            save();
+        }
+    };
+
+    window.confirmWithdraw = () => {
+        const amt = parseFloat(document.getElementById('withdraw-amount-input').value);
+        const currentBalance = activeAccount === 'demo' ? demoBalance : realBalance;
+        if (amt > 0 && amt <= currentBalance) {
+            if (activeAccount === 'demo') demoBalance -= amt; else realBalance -= amt;
+            updateWalletDisplay(); closeModal('modal-withdraw');
+            document.getElementById('withdraw-amount-input').value = '';
+            showToast(`Withdrew $${amt.toFixed(2)}`, 'success');
+            save();
+        } else {
+            showToast("Invalid withdrawal amount.", "error");
+        }
+    };
+
+    document.getElementById('btn-deposit').addEventListener('click', () => {
+        document.getElementById('deposit-account-target').value = activeAccount.toUpperCase() + " Account";
+        openModal('modal-deposit');
+    });
+
+    document.getElementById('btn-withdraw').addEventListener('click', () => {
+        document.getElementById('withdraw-account-target').value = activeAccount.toUpperCase() + " Account";
+        openModal('modal-withdraw');
+    });
+
+    document.getElementById('symbol-selector').addEventListener('change', (e) => loadSymbol(e.target.value));
+    document.getElementById('tf-selector').addEventListener('change', (e) => {
+        currentTF = parseInt(e.target.value);
+        render();
+        requestAnimationFrame(() => {
+            chart.priceScale('right').applyOptions({ autoScale: true });
+            chart.timeScale().fitContent();
+            updateTimerBadgePosition();
+        });
+    });
+
+    document.getElementById('account-type-select').addEventListener('change', (e) => { 
+        val = e.target.value;
+        if (val === 'reset') { resetDemoAccount(); } 
+        else { activeAccount = val; updateAccountOptions(); updateWalletDisplay(); save(); }
+    });
+
+    loadWallet();
+    updateAccountOptions();
+    updateWalletDisplay();
+    loadSymbol('30');
+    startTicker();
+</script>
+</body>
+</html>
