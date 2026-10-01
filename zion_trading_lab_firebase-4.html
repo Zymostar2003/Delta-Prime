@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#0b1220">
+<title>ZION Trading Lab · Firebase Dashboard</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+
+<style>
+:root{
+  --bg:#07101d;--panel:#0d1828;--panel2:#101f32;--line:#213149;
+  --text:#edf4ff;--muted:#8fa4bd;--accent:#45a3ff;--accent2:#7c5cff;
+  --good:#27d69b;--bad:#ff5e73;--warn:#ffc857;--white:#fff;
+  --shadow:0 20px 60px rgba(0,0,0,.30);--radius:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:"IBM Plex Sans",sans-serif}
+body{overflow-x:hidden}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+
+/* AUTH */
+#authScreen{
+  min-height:100vh;display:grid;place-items:center;padding:24px;
+  background:
+    radial-gradient(circle at 20% 20%,rgba(69,163,255,.16),transparent 32%),
+    radial-gradient(circle at 80% 80%,rgba(124,92,255,.13),transparent 30%),var(--bg)
+}
+.auth-wrap{width:min(980px,100%);display:grid;grid-template-columns:1.15fr .85fr;gap:22px}
+.auth-brand,.auth-card{background:rgba(13,24,40,.90);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow)}
+.auth-brand{padding:46px;display:flex;flex-direction:column;justify-content:center}
+.logo{font-weight:800;letter-spacing:.12em;font-size:15px;color:#fff}
+.logo span{color:var(--accent)}
+.auth-brand h1{font-size:48px;line-height:1.02;margin:20px 0 16px}
+.auth-brand p{color:var(--muted);font-size:17px;line-height:1.65;max-width:600px}
+.features{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px}
+.feature{border:1px solid var(--line);background:rgba(255,255,255,.025);padding:13px;border-radius:12px;color:#bcd0e8;font-size:13px}
+.auth-card{padding:30px}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;background:#081321;border-radius:12px;padding:4px;margin-bottom:22px}
+.auth-tab{border:0;background:transparent;color:var(--muted);padding:11px;border-radius:9px}
+.auth-tab.active{background:var(--panel2);color:#fff}
+.auth-card h2{margin:0 0 7px;font-size:26px}
+.auth-card .sub{color:var(--muted);margin:0 0 22px;font-size:13px}
+.field{margin-bottom:13px}
+.field label{display:block;color:#a9bad0;font-size:12px;margin-bottom:6px}
+.field input{
+  width:100%;border:1px solid var(--line);background:#081321;color:#fff;
+  border-radius:10px;padding:12px 13px;outline:none
+}
+.field input:focus{border-color:var(--accent)}
+.primary{
+  width:100%;border:0;border-radius:10px;padding:13px;background:var(--accent);
+  color:#04101e;font-weight:800;margin-top:6px
+}
+.status{min-height:20px;margin-top:13px;font-size:12px;color:var(--muted)}
+.status.error{color:var(--bad)}.status.ok{color:var(--good)}
+.auth-note{font-size:11px;color:#6f839d;line-height:1.5;margin-top:18px}
+
+/* APP */
+#appShell{min-height:100vh}
+.topbar{
+  position:sticky;top:0;z-index:20;height:64px;padding:0 18px;
+  display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--line);
+  background:rgba(7,16,29,.92);backdrop-filter:blur(14px)
+}
+.brand{font-weight:800;letter-spacing:.09em;font-size:13px;white-space:nowrap}
+.brand b{color:var(--accent)}
+.connection{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--bad);box-shadow:0 0 12px currentColor}
+.dot.live{background:var(--good)}
+.top-spacer{flex:1}
+.user-chip{display:flex;align-items:center;gap:9px;color:#bfd0e5;font-size:12px}
+.avatar{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:800}
+.logout{border:1px solid var(--line);background:#0d1828;color:#c9d7e8;border-radius:9px;padding:8px 11px;font-size:12px}
+.dashboard{max-width:1500px;margin:auto;padding:18px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.stat{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:15px}
+.stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.stat .v{font-family:"JetBrains Mono";font-size:19px;margin-top:7px}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.controls{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-bottom:1px solid var(--line)}
+.control{display:flex;align-items:center;gap:6px;background:#091524;border:1px solid var(--line);border-radius:9px;padding:7px 9px}
+.control label{font-size:10px;color:var(--muted)}
+.control select,.control input{border:0;outline:0;background:transparent;color:#eaf3ff;font-size:12px;min-width:62px}
+.control input{width:68px}
+.control option{background:#0d1828}
+.chart-wrap{position:relative;height:570px}
+#chart{position:absolute;inset:0}
+.chart-head{
+  position:absolute;z-index:3;left:12px;top:10px;display:flex;gap:8px;align-items:center;
+  pointer-events:none
+}
+.pill{background:rgba(7,16,29,.86);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:11px;color:#c8d6e7}
+.truth{padding:15px;border-top:1px solid var(--line);background:#0a1524}
+.truth-title{display:flex;align-items:center;justify-content:space-between}
+.truth-title strong{font-size:13px}.truth-title span{font-size:10px;color:var(--muted)}
+.truth-score{display:flex;align-items:center;gap:15px;margin:14px 0}
+.score-ring{width:78px;height:78px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--accent) 0deg,#18263a 0deg)}
+.score-ring b{width:61px;height:61px;border-radius:50%;display:grid;place-items:center;background:#0a1524;font-family:"JetBrains Mono";font-size:17px}
+.truth-state{font-weight:800;font-size:17px}
+.bar{height:7px;background:#18263a;border-radius:99px;overflow:hidden;margin:9px 0 14px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.metric{background:#0d1b2d;border:1px solid var(--line);padding:9px;border-radius:9px}
+.metric small{display:block;color:var(--muted);font-size:9px}.metric b{font-family:"JetBrains Mono";font-size:11px}
+.side{display:flex;flex-direction:column;gap:14px}
+.side .panel{padding:15px}
+.side h3{font-size:13px;margin:0 0 12px}
+.chat-log{height:300px;overflow:auto;display:flex;flex-direction:column;gap:9px;margin-bottom:10px}
+.msg{padding:9px 10px;border-radius:10px;font-size:12px;line-height:1.45;white-space:pre-wrap}
+.msg.bot{background:#0b1b2c;border:1px solid var(--line);color:#c8d8e9}
+.msg.user{background:#17365a;color:#eef7ff;align-self:flex-end;max-width:88%}
+.chat-row{display:flex;gap:7px}.chat-row input{flex:1;min-width:0;background:#081321;border:1px solid var(--line);border-radius:9px;padding:10px;color:#fff;outline:0}
+.chat-row button{border:0;background:var(--accent);border-radius:9px;padding:0 13px;font-weight:800}
+.switches{display:grid;gap:8px}
+.switch{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#b7c8da}
+.switch input{accent-color:var(--accent)}
+.connection-banner{display:none;background:#3b1820;color:#ffc0c9;border:1px solid #71303d;padding:8px 12px;font-size:11px}
+.connection-banner.show{display:block}
+.footer{padding:14px;text-align:center;color:#627792;font-size:10px}
+
+/* mobile */
+@media(max-width:1000px){
+  .auth-wrap{grid-template-columns:1fr}.auth-brand{display:none}
+  .workspace{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:650px){
+  .dashboard{padding:10px}.topbar{padding:0 10px}.user-chip span{display:none}
+  .cards{grid-template-columns:1fr 1fr}.chart-wrap{height:440px}
+  .controls{overflow-x:auto;flex-wrap:nowrap}.control{flex:0 0 auto}
+  .brand{font-size:11px}.connection{display:none}
+}
+</style>
+</head>
+
+<body>
+
+<!-- ===================== AUTHENTICATION ===================== -->
+<section id="authScreen">
+  <div class="auth-wrap">
+    <div class="auth-brand">
+      <div class="logo">ZION <span>TRADING LAB</span></div>
+      <h1>Trade data.<br>Read structure.</h1>
+      <p>
+        A protected dashboard for your Deriv synthetic-index chart, dual moving averages,
+        Truth Engine analysis, volume profile and market-notes chat.
+      </p>
+      <div class="features">
+        <div class="feature">✓ Firebase email authentication</div>
+        <div class="feature">✓ Live Deriv WebSocket feed</div>
+        <div class="feature">✓ EMA / SMA Truth Engine</div>
+        <div class="feature">✓ Volume Profile tools</div>
+      </div>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button id="loginTab" class="auth-tab active">Login</button>
+        <button id="signupTab" class="auth-tab">Create account</button>
+      </div>
+
+      <div id="loginForm">
+        <h2>Welcome back</h2>
+        <p class="sub">Sign in to open your trading dashboard.</p>
+        <div class="field">
+          <label>Email</label>
+          <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Your password">
+        </div>
+        <button id="loginBtn" class="primary">Login</button>
+      </div>
+
+      <div id="signupForm" class="hidden">
+        <h2>Create account</h2>
+        <p class="sub">Create an account for your private dashboard.</p>
+        <div class="field">
+          <label>Name</label>
+          <input id="signupName" type="text" autocomplete="name" placeholder="Your name">
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="signupPassword" type="password" autocomplete="new-password" placeholder="At least 6 characters">
+        </div>
+        <div class="field">
+          <label>Confirm password</label>
+          <input id="signupConfirm" type="password" autocomplete="new-password" placeholder="Repeat your password">
+          <div id="passwordMatch" style="font-size:11px;margin-top:6px;color:#8fa4bd;min-height:15px"></div>
+        </div>
+        <button id="signupBtn" class="primary" disabled style="opacity:.55">Create account</button>
+      </div>
+
+      <div id="authStatus" class="status"></div>
+      <div class="auth-note">
+        Email/password sign-in must be enabled in Firebase Console → Authentication → Sign-in method.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== DASHBOARD ===================== -->
+<section id="appShell" class="hidden">
+  <header class="topbar">
+    <div class="brand">ZION <b>TRADING LAB</b></div>
+    <div class="connection"><i id="connDot" class="dot"></i><span id="connText">Offline</span></div>
+    <div class="top-spacer"></div>
+    <div class="user-chip">
+      <div id="avatar" class="avatar">U</div>
+      <span id="userEmail">user</span>
+    </div>
+    <button id="logoutBtn" class="logout">Logout</button>
+  </header>
+
+  <main class="dashboard">
+    <div id="connectionBanner" class="connection-banner">Connection lost. Reconnecting to Deriv…</div>
+
+    <div class="cards">
+      <div class="stat"><div class="k">Market</div><div id="statSymbol" class="v">R_100</div></div>
+      <div class="stat"><div class="k">Timeframe</div><div id="statTF" class="v">1m</div></div>
+      <div class="stat"><div class="k">Truth score</div><div id="statScore" class="v">0 / 100</div></div>
+      <div class="stat"><div class="k">Engine state</div><div id="statState" class="v">WAITING</div></div>
+    </div>
+
+    <div class="workspace">
+      <section class="panel">
+        <div class="controls">
+          <div class="control"><label>SYMBOL</label><select id="symbolSelect">
+            <option value="R_10">R_10</option><option value="R_25">R_25</option>
+            <option value="R_50">R_50</option><option value="R_75">R_75</option>
+            <option value="R_100" selected>R_100</option>
+            <option value="1HZ10V">1HZ10V</option><option value="1HZ25V">1HZ25V</option>
+            <option value="1HZ50V">1HZ50V</option><option value="1HZ75V">1HZ75V</option>
+            <option value="1HZ100V">1HZ100V</option>
+          </select></div>
+
+          <div class="control"><label>TF</label><select id="timeframeSelect">
+            <option value="60" selected>1m</option><option value="120">2m</option>
+            <option value="180">3m</option><option value="300">5m</option>
+            <option value="600">10m</option><option value="900">15m</option>
+            <option value="1800">30m</option><option value="3600">1h</option>
+            <option value="7200">2h</option><option value="14400">4h</option>
+            <option value="28800">8h</option><option value="86400">1d</option>
+          </select></div>
+
+          <div class="control"><label>MA</label><select id="maType">
+            <option value="EMA">EMA</option><option value="SMA">SMA</option>
+          </select></div>
+          <div class="control"><label>FAST</label><input id="fastPeriod" type="number" min="2" max="100" value="9"></div>
+          <div class="control"><label>SLOW</label><input id="slowPeriod" type="number" min="3" max="200" value="21"></div>
+          <div class="control"><label>VP</label><select id="vpRows">
+            <option value="24">24 rows</option><option value="36" selected>36 rows</option><option value="48">48 rows</option>
+          </select></div>
+          <div class="control"><label>DISPLAY</label><select id="displayMode">
+            <option value="all" selected>Chart + Engine</option><option value="chart">Chart only</option>
+          </select></div>
+        </div>
+
+        <div class="chart-wrap">
+          <div id="chart"></div>
+          <div class="chart-head">
+            <span id="chartSymbol" class="pill">R_100</span>
+            <span id="chartTF" class="pill">1m</span>
+            <span id="countdown" class="pill">--</span>
+          </div>
+        </div>
+
+        <div id="truthPanel" class="truth">
+          <div class="truth-title"><strong>TRUTH ENGINE</strong><span>Dual MA structure analysis</span></div>
+          <div class="truth-score">
+            <div id="scoreRing" class="score-ring"><b id="scoreValue">0</b></div>
+            <div><div id="truthState" class="truth-state">WAITING FOR DATA</div><div id="strengthText" style="color:#8fa4bd;font-size:11px;margin-top:4px">No confirmed structure yet.</div></div>
+          </div>
+          <div class="bar"><i id="strengthBar"></i></div>
+          <div class="metrics">
+            <div class="metric"><small>FAST MA</small><b id="fastValue">—</b></div>
+            <div class="metric"><small>SLOW MA</small><b id="slowValue">—</b></div>
+            <div class="metric"><small>SPREAD</small><b id="spreadValue">—</b></div>
+            <div class="metric"><small>MOMENTUM</small><b id="momentumValue">—</b></div>
+            <div class="metric"><small>LAST CROSS</small><b id="crossValue">—</b></div>
+            <div class="metric"><small>DIVERGENCE</small><b id="divergenceValue">—</b></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side">
+        <section class="panel">
+          <h3>MARKET CHAT / NOTES</h3>
+          <div id="chatLog" class="chat-log">
+            <div class="msg bot">Truth Engine assistant ready.\nAsk about the current chart structure, MA relationship, momentum or the latest detected signal.</div>
+          </div>
+          <div class="chat-row">
+            <input id="chatInput" placeholder="Ask about the market…">
+            <button id="chatSend">Send</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>ENGINE SETTINGS</h3>
+          <div class="switches">
+            <label class="switch">Show MA lines <input id="maToggle" type="checkbox" checked></label>
+            <label class="switch">Show VP <input id="vpToggle" type="checkbox"></label>
+            <label class="switch">Cross markers <input id="crossToggle" type="checkbox" checked></label>
+            <label class="switch">Auto reconnect <input id="reconnectToggle" type="checkbox" checked></label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>ABOUT THIS ENGINE</h3>
+          <div style="font-size:11px;color:#8297af;line-height:1.6">
+            The Truth Engine is descriptive market analysis. It measures moving-average
+            relationship, spread, momentum, crossover and price/MA divergence. It does not
+            guarantee future price movement or profitability.
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div class="footer">ZION Trading Lab · Firebase authenticated dashboard · Deriv public market data</div>
+  </main>
+</section>
+
+<script type="module">
+/* ============================================================
+   FIREBASE
+   Firebase's current browser-module CDN pattern is used here.
+   ============================================================ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  updateProfile
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC3EsZVnlWkZY85kE9wMnt-zC1qE7NcaEM",
+  authDomain: "syntheticindexchart-cbc29.firebaseapp.com",
+  projectId: "syntheticindexchart-cbc29",
+  storageBucket: "syntheticindexchart-cbc29.firebasestorage.app",
+  messagingSenderId: "837852201926",
+  appId: "1:837852201926:web:045dfba01c09cc6b97e8c7",
+  measurementId: "G-465W4BNS5D"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+isSupported().then(ok => { if (ok) getAnalytics(firebaseApp); }).catch(()=>{});
+
+const $ = id => document.getElementById(id);
+let currentUser = null;
+
+function setAuthStatus(text="", type=""){
+  const el=$("authStatus"); el.textContent=text; el.className="status "+type;
+}
+function setBusy(button,busy,label){
+  button.disabled=busy; button.style.opacity=busy?".65":"1"; button.textContent=busy?"Please wait…":label;
+}
+function friendlyAuthError(code){
+  const map={
+    "auth/invalid-email":"Please enter a valid email address.",
+    "auth/invalid-credential":"Email or password is incorrect.",
+    "auth/user-not-found":"No account was found with that email.",
+    "auth/wrong-password":"The password is incorrect.",
+    "auth/email-already-in-use":"An account already exists with this email.",
+    "auth/weak-password":"Use a stronger password of at least 6 characters.",
+    "auth/network-request-failed":"Network error. Check your internet connection.",
+    "auth/too-many-requests":"Too many attempts. Please wait and try again.",
+    "auth/operation-not-allowed":"Email/password authentication is not enabled in this Firebase project. Enable Email/Password in Firebase Console → Authentication → Sign-in method.",
+    "auth/unauthorized-domain":"This website domain is not authorized in Firebase Authentication. Add the current domain under Authentication → Settings → Authorized domains.",
+    "auth/invalid-api-key":"The Firebase API key is invalid or restricted. Check the Web API key in your Firebase project settings.",
+    "auth/app-not-authorized":"This app is not authorized for this Firebase project. Check the Firebase web app configuration and authorized domains.",
+    "auth/internal-error":"Firebase returned an internal authentication error. Check the browser console for the exact Firebase error code."
+  };
+  return map[code] || `Authentication failed (${code || "unknown error"}). Please check Firebase Console.`;
+}
+
+function showTab(tab){
+  const login=tab==="login";
+  $("loginForm").classList.toggle("hidden",!login);
+  $("signupForm").classList.toggle("hidden",login);
+  $("loginTab").classList.toggle("active",login);
+  $("signupTab").classList.toggle("active",!login);
+  setAuthStatus("");
+}
+$("loginTab").onclick=()=>showTab("login");
+$("signupTab").onclick=()=>showTab("signup");
+
+$("loginBtn").onclick=async()=>{
+  const email=$("loginEmail").value.trim();
+  const password=$("loginPassword").value;
+  if(!email||!password){setAuthStatus("Enter your email and password.","error");return;}
+  setBusy($("loginBtn"),true,"Login");
+  try{await signInWithEmailAndPassword(auth,email,password);setAuthStatus("Login successful.","ok");}
+  catch(e){
+    console.error("Firebase login error:", e.code, e.message, e);
+    setAuthStatus(friendlyAuthError(e.code),"error");
+  }
+  finally{setBusy($("loginBtn"),false,"Login");}
+};
+
+function checkPasswordMatch(){
+  const password=$("signupPassword").value;
+  const confirm=$("signupConfirm").value;
+  const matchEl=$("passwordMatch");
+  const btn=$("signupBtn");
+
+  const valid = password.length >= 6 && confirm.length > 0 && password === confirm;
+  btn.disabled=!valid;
+  btn.style.opacity=valid?"1":".55";
+
+  if(!confirm){
+    matchEl.textContent="";
+    matchEl.style.color="#8fa4bd";
+  }else if(password===confirm){
+    matchEl.textContent="✓ Passwords match";
+    matchEl.style.color="#27d69b";
+  }else{
+    matchEl.textContent="✕ Passwords do not match";
+    matchEl.style.color="#ff5e73";
+  }
+}
+
+$("signupPassword").addEventListener("input",checkPasswordMatch);
+$("signupConfirm").addEventListener("input",checkPasswordMatch);
+
+$("signupBtn").onclick=async()=>{
+  const name=$("signupName").value.trim();
+  const email=$("signupEmail").value.trim();
+  const password=$("signupPassword").value;
+  const confirm=$("signupConfirm").value;
+
+  if(!name||!email||!password||!confirm){
+    setAuthStatus("Complete all fields, including password confirmation.","error");
+    return;
+  }
+  if(password!==confirm){
+    setAuthStatus("Passwords do not match. Please confirm your password.","error");
+    checkPasswordMatch();
+    return;
+  }
+  if(password.length<6){
+    setAuthStatus("Password must be at least 6 characters.","error");
+    return;
+  }
+
+  setBusy($("signupBtn"),true,"Create account");
+  try{
+    const cred=await createUserWithEmailAndPassword(auth,email,password);
+    await updateProfile(cred.user,{displayName:name});
+    setAuthStatus("Account created successfully.","ok");
+  }catch(e){
+    console.error("Firebase signup error:", e.code, e.message, e);
+    setAuthStatus(friendlyAuthError(e.code),"error");
+  }finally{
+    setBusy($("signupBtn"),false,"Create account");
+    checkPasswordMatch();
+  }
+};
+
+$("logoutBtn").onclick=()=>signOut(auth);
+
+onAuthStateChanged(auth,user=>{
+  currentUser=user;
+  if(user){
+    $("authScreen").classList.add("hidden");
+    $("appShell").classList.remove("hidden");
+    const name=user.displayName||user.email?.split("@")[0]||"User";
+    $("userEmail").textContent=user.email||name;
+    $("avatar").textContent=name.charAt(0).toUpperCase();
+    window.startTradingApp?.();
+  }else{
+    $("appShell").classList.add("hidden");
+    $("authScreen").classList.remove("hidden");
+    window.stopTradingApp?.();
+  }
+});
+</script>
+
+<script>
+/* ============================================================
+   ZION / VOLATILITY CHART ENGINE
+   This is the single-file chart layer. It starts only after
+   Firebase authentication succeeds.
+   ============================================================ */
+(() => {
+"use strict";
+
+const $ = id => document.getElementById(id);
+const MAX_CANDLES=2000;
+const INITIAL_CANDLES=1500;
+const WS_URL="wss://ws.binaryws.com/websockets/v3?app_id=1089";
+
+const STATE={
+  ws:null,connected:false,connecting:false,reconnectTimer:null,
+  symbol:"R_100",granularity:60,candles:[],
+  chart:null,candleSeries:null,fastSeries:null,slowSeries:null,
+  started:false,stopRequested:false,countdownTimer:null,
+  lastAnalysis:null,requestId:10
+};
+
+function timeframeLabel(sec){
+  if(sec<3600)return `${sec/60}m`;
+  if(sec%86400===0)return `${sec/86400}d`;
+  return `${sec/3600}h`;
+}
+function priceDigits(symbol){
+  return symbol.startsWith("1HZ") ? 2 : 3;
+}
+function setConnection(ok){
+  STATE.connected=ok;
+  $("connDot").classList.toggle("live",ok);
+  $("connText").textContent=ok?"Deriv LIVE":"Offline";
+  $("connectionBanner").classList.toggle("show",!ok);
+}
+
+function initChart(){
+  if(STATE.chart)return;
+  STATE.chart=LightweightCharts.createChart($("chart"),{
+    layout:{background:{type:"solid",color:"#0d1828"},textColor:"#8fa4bd"},
+    grid:{vertLines:{color:"#162438"},horzLines:{color:"#162438"}},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    rightPriceScale:{borderColor:"#213149"},
+    timeScale:{borderColor:"#213149",timeVisible:true,secondsVisible:false},
+    handleScroll:{mouseWheel:true,pressedMouseMove:true},
+    handleScale:{mouseWheel:true,pinch:true}
+  });
+  STATE.candleSeries=STATE.chart.addCandlestickSeries({
+    upColor:"#27d69b",downColor:"#ff5e73",
+    borderUpColor:"#27d69b",borderDownColor:"#ff5e73",
+    wickUpColor:"#27d69b",wickDownColor:"#ff5e73"
+  });
+  STATE.fastSeries=STATE.chart.addLineSeries({color:"#45a3ff",lineWidth:2,priceLineVisible:false});
+  STATE.slowSeries=STATE.chart.addLineSeries({color:"#ffc857",lineWidth:2,priceLineVisible:false});
+  new ResizeObserver(()=>STATE.chart?.resize($("chart").clientWidth,$("chart").clientHeight)).observe($("chart"));
+}
+
+function wsSend(obj){
+  if(STATE.ws?.readyState===WebSocket.OPEN)STATE.ws.send(JSON.stringify(obj));
+}
+function connect(){
+  if(!STATE.started||STATE.stopRequested||STATE.connecting)return;
+  if(STATE.ws){try{STATE.ws.close()}catch{}}
+  STATE.connecting=true;
+  setConnection(false);
+  const ws=new WebSocket(WS_URL); STATE.ws=ws;
+  ws.onopen=()=>{
+    STATE.connecting=false; setConnection(true);
+    wsSend({ticks_history:STATE.symbol,end:"latest",count:INITIAL_CANDLES,granularity:STATE.granularity,
+      style:"candles",subscribe:1});
+    wsSend({ticks:STATE.symbol,subscribe:1});
+  };
+  ws.onmessage=e=>{
+    let d;try{d=JSON.parse(e.data)}catch{return}
+    if(d.error){console.warn(d.error);return}
+    if(d.candles)loadHistory(d.candles);
+    if(d.ohlc)handleOHLC(d.ohlc);
+  };
+  ws.onerror=()=>setConnection(false);
+  ws.onclose=()=>{
+    STATE.connecting=false;setConnection(false);
+    if(STATE.started&&!STATE.stopRequested&&$("reconnectToggle").checked){
+      clearTimeout(STATE.reconnectTimer);
+      STATE.reconnectTimer=setTimeout(connect,2500);
+    }
+  };
+}
+function loadHistory(raw){
+  const candles=raw.map(c=>({
+    time:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)
+  })).filter(c=>Number.isFinite(c.time)&&Number.isFinite(c.close));
+  candles.sort((a,b)=>a.time-b.time);
+  STATE.candles=candles.slice(-MAX_CANDLES);
+  renderAll();
+}
+function handleOHLC(o){
+  const c={time:Number(o.open_time||o.epoch),open:Number(o.open),high:Number(o.high),low:Number(o.low),close:Number(o.close)};
+  if(!Number.isFinite(c.time)||!Number.isFinite(c.close))return;
+  const last=STATE.candles[STATE.candles.length-1];
+  if(!last||c.time>last.time)STATE.candles.push(c);
+  else if(c.time===last.time)STATE.candles[STATE.candles.length-1]=c;
+  else return;
+  if(STATE.candles.length>MAX_CANDLES)STATE.candles.shift();
+  renderAll();
+}
+function computeMA(values,p,type){
+  const out=new Array(values.length).fill(null);
+  if(values.length<p)return out;
+  if(type==="SMA"){
+    let sum=0;
+    for(let i=0;i<values.length;i++){
+      sum+=values[i];
+      if(i>=p)sum-=values[i-p];
+      if(i>=p-1)out[i]=sum/p;
+    }
+  }else{
+    const k=2/(p+1);
+    let prev=values.slice(0,p).reduce((a,b)=>a+b,0)/p;
+    out[p-1]=prev;
+    for(let i=p;i<values.length;i++){prev=values[i]*k+prev*(1-k);out[i]=prev;}
+  }
+  return out;
+}
+function computeATR(candles,p=14){
+  const tr=[];
+  for(let i=0;i<candles.length;i++){
+    if(i===0){tr.push(candles[i].high-candles[i].low);continue}
+    const c=candles[i],prev=candles[i-1];
+    tr.push(Math.max(c.high-c.low,Math.abs(c.high-prev.close),Math.abs(c.low-prev.close)));
+  }
+  return computeMA(tr,p,"SMA");
+}
+function analyze(){
+  const cs=STATE.candles;
+  const closes=cs.map(c=>c.close);
+  const fastP=Math.max(2,Number($("fastPeriod").value)||9);
+  const slowP=Math.max(fastP+1,Number($("slowPeriod").value)||21);
+  const type=$("maType").value;
+  const fast=computeMA(closes,fastP,type);
+  const slow=computeMA(closes,slowP,type);
+  const atr=computeATR(cs,14);
+  const i=cs.length-1;
+  if(i<slowP||fast[i]==null||slow[i]==null)return null;
+
+  const f=fast[i],s=slow[i],a=atr[i]||Math.max(Math.abs(cs[i].high-cs[i].low),1e-9);
+  const spread=f-s;
+  const prevSpread=fast[i-1]!=null&&slow[i-1]!=null?fast[i-1]-slow[i-1]:spread;
+  const expanding=Math.abs(spread)>Math.abs(prevSpread);
+  const price=closes[i];
+  const position=price>f&&price>s?"BULL":price<f&&price<s?"BEAR":"MIXED";
+  const cross=prevSpread<=0&&spread>0?"BULL CROSS":prevSpread>=0&&spread<0?"BEAR CROSS":"—";
+  const slopeF=fast[i]-fast[Math.max(0,i-3)];
+  const slopeS=slow[i]-slow[Math.max(0,i-3)];
+  const momentum=Math.abs(slopeF)>Math.abs(slopeS)?"EXPANDING":"CONTRACTING";
+  let state="UNCONFIRMED";
+  if(position==="BULL"&&spread>0&&slopeF>=0)state="BULL";
+  else if(position==="BEAR"&&spread<0&&slopeF<=0)state="BEAR";
+  else if(Math.abs(spread)<=a*.08)state="FLAT";
+
+  let score=35;
+  if(position!=="MIXED")score+=25;
+  if(state==="BULL"||state==="BEAR")score+=20;
+  if(expanding)score+=10;
+  if(cross!=="—")score+=10;
+  score=Math.max(0,Math.min(100,Math.round(score)));
+
+  const pLook=Math.max(3,Math.min(20,i-1));
+  const priceDelta=price-closes[i-pLook];
+  const maDelta=fast[i]-fast[i-pLook];
+  const divergence=(priceDelta>0&&maDelta<0)?"BEARISH DIVERGENCE":
+                   (priceDelta<0&&maDelta>0)?"BULLISH DIVERGENCE":"NONE";
+  return {fast,slow,atr,f,s,a,spread,state,score,momentum,cross,divergence};
+}
+function renderAnalysis(x){
+  if(!x)return;
+  const digits=priceDigits(STATE.symbol);
+  $("scoreValue").textContent=x.score;
+  $("statScore").textContent=`${x.score} / 100`;
+  $("truthState").textContent=x.state;
+  $("statState").textContent=x.state;
+  $("strengthText").textContent=x.state==="BULL"?"Bullish structure detected":
+    x.state==="BEAR"?"Bearish structure detected":
+    x.state==="FLAT"?"Low MA separation":"Structure is not fully confirmed";
+  $("strengthBar").style.width=x.score+"%";
+  $("scoreRing").style.background=`conic-gradient(${x.state==="BEAR"?"#ff5e73":x.state==="BULL"?"#27d69b":"#45a3ff"} ${x.score*3.6}deg,#18263a 0deg)`;
+  $("fastValue").textContent=x.f.toFixed(digits);
+  $("slowValue").textContent=x.s.toFixed(digits);
+  $("spreadValue").textContent=x.spread.toFixed(digits);
+  $("momentumValue").textContent=x.momentum;
+  $("crossValue").textContent=x.cross;
+  $("divergenceValue").textContent=x.divergence;
+  STATE.lastAnalysis=x;
+}
+function renderAll(){
+  if(!STATE.candleSeries)return;
+  STATE.candleSeries.setData(STATE.candles);
+  const x=analyze();
+  if(x){
+    const fdata=[],sdata=[];
+    STATE.candles.forEach((c,i)=>{
+      if(x.fast[i]!=null)fdata.push({time:c.time,value:x.fast[i]});
+      if(x.slow[i]!=null)sdata.push({time:c.time,value:x.slow[i]});
+    });
+    STATE.fastSeries.setData(fdata);STATE.slowSeries.setData(sdata);
+    renderAnalysis(x);
+    if($("crossToggle").checked){
+      const markers=[];
+      for(let i=1;i<STATE.candles.length;i++){
+        const a=x.fast[i-1],b=x.slow[i-1],c=x.fast[i],d=x.slow[i];
+        if([a,b,c,d].some(v=>v==null))continue;
+        if(a<=b&&c>d)markers.push({time:STATE.candles[i].time,position:"belowBar",color:"#27d69b",shape:"arrowUp",text:"BUY CROSS"});
+        if(a>=b&&c<d)markers.push({time:STATE.candles[i].time,position:"aboveBar",color:"#ff5e73",shape:"arrowDown",text:"SELL CROSS"});
+      }
+      STATE.candleSeries.setMarkers(markers.slice(-80));
+    }else STATE.candleSeries.setMarkers([]);
+  }
+  updateLabels();
+}
+function updateLabels(){
+  const tf=timeframeLabel(STATE.granularity);
+  $("chartSymbol").textContent=STATE.symbol;
+  $("chartTF").textContent=tf;
+  $("statSymbol").textContent=STATE.symbol;
+  $("statTF").textContent=tf;
+}
+function startCountdown(){
+  clearInterval(STATE.countdownTimer);
+  STATE.countdownTimer=setInterval(()=>{
+    if(!STATE.started)return;
+    const now=Math.floor(Date.now()/1000);
+    const rem=STATE.granularity-(now%STATE.granularity);
+    $("countdown").textContent=`${rem}s`;
+  },250);
+}
+function changeMarket(){
+  STATE.symbol=$("symbolSelect").value;
+  STATE.candles=[];
+  STATE.candleSeries?.setData([]);
+  STATE.fastSeries?.setData([]);
+  STATE.slowSeries?.setData([]);
+  if(STATE.ws)try{STATE.ws.close()}catch{}
+  connect();
+}
+function changeTF(){
+  STATE.granularity=Number($("timeframeSelect").value)||60;
+  STATE.candles=[];
+  updateLabels();
+  if(STATE.ws)try{STATE.ws.close()}catch{}
+  connect();
+}
+function bindUI(){
+  $("symbolSelect").onchange=changeMarket;
+  $("timeframeSelect").onchange=changeTF;
+  $("maType").onchange=renderAll;
+  $("fastPeriod").onchange=renderAll;
+  $("slowPeriod").onchange=renderAll;
+  $("crossToggle").onchange=renderAll;
+  $("maToggle").onchange=()=>{
+    const on=$("maToggle").checked;
+    STATE.fastSeries.applyOptions({visible:on});
+    STATE.slowSeries.applyOptions({visible:on});
+  };
+  $("displayMode").onchange=()=>{
+    $("truthPanel").classList.toggle("hidden",$("displayMode").value==="chart");
+  };
+  $("reconnectToggle").onchange=()=>{if($("reconnectToggle").checked&&!STATE.connected)connect()};
+  $("vpToggle").onchange=()=>{
+    /* Volume-profile controls are reserved for the full VP overlay layer.
+       The chart remains functional without an artificial volume feed. */
+    if($("vpToggle").checked)chatBot("Volume Profile is enabled as a workspace setting. Deriv synthetic candles do not provide conventional exchange volume, so this build does not fabricate volume.");
+  };
+
+  $("chatSend").onclick=sendChat;
+  $("chatInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});
+}
+function sendChat(){
+  const input=$("chatInput"),q=input.value.trim();if(!q)return;
+  addMsg(q,"user");input.value="";
+  setTimeout(()=>chatBot(answerQuestion(q)),250);
+}
+function addMsg(text,type){
+  const el=document.createElement("div");el.className="msg "+type;el.textContent=text;
+  const log=$("chatLog");log.appendChild(el);log.scrollTop=log.scrollHeight;
+}
+function answerQuestion(q){
+  const x=STATE.lastAnalysis;
+  if(!x)return "I am waiting for enough live candles to calculate the Truth Engine.";
+  const l=q.toLowerCase();
+  if(l.includes("trend")||l.includes("direction")||l.includes("structure"))
+    return `Current structure: ${x.state}. Fast MA ${x.f.toFixed(priceDigits(STATE.symbol))}, slow MA ${x.s.toFixed(priceDigits(STATE.symbol))}. Spread is ${x.spread.toFixed(priceDigits(STATE.symbol))}.`;
+  if(l.includes("score"))
+    return `Truth Engine score: ${x.score}/100. This score summarizes the MA relationship, price position, spread and momentum conditions in the current calculation.`;
+  if(l.includes("momentum"))
+    return `Momentum reading: ${x.momentum}. MA spread is ${Math.abs(x.spread)>Math.abs((STATE.lastAnalysis?.spread)||0)?"expanding":"being evaluated"} on the latest update.`;
+  if(l.includes("cross"))
+    return `Latest crossover status: ${x.cross}.`;
+  if(l.includes("divergence"))
+    return `Divergence status: ${x.divergence}.`;
+  return `Current state is ${x.state}, score ${x.score}/100, momentum ${x.momentum}, crossover ${x.cross}, divergence ${x.divergence}.`;
+}
+function chatBot(text){addMsg(text,"bot")}
+
+window.startTradingApp=()=>{
+  if(STATE.started)return;
+  STATE.started=true;STATE.stopRequested=false;
+  initChart();bindUI();updateLabels();startCountdown();connect();
+};
+window.stopTradingApp=()=>{
+  STATE.started=false;STATE.stopRequested=true;
+  clearTimeout(STATE.reconnectTimer);clearInterval(STATE.countdownTimer);
+  if(STATE.ws)try{STATE.ws.close()}catch{}
+  STATE.ws=null;setConnection(false);
+};
+
+})();
+</script>
+</body>
+</html>
